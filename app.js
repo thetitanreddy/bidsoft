@@ -6,13 +6,13 @@ import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/fir
 // (Keys are intentionally public for web apps)
 // ============================================================
 const firebaseConfig = {
-  apiKey: "AIzaSyAtlfpb_wqzW96V2pX3gguwKUc3_hq1KjU",
-  authDomain: "bid-soft.firebaseapp.com",
-  databaseURL: "https://bid-soft-default-rtdb.firebaseio.com",
-  projectId: "bid-soft",
-  storageBucket: "bid-soft.firebasestorage.app",
-  messagingSenderId: "898223898663",
-  appId: "1:898223898663:web:989c1336b393d2fd4bce02"
+  apiKey: "AIzaSyD6MSpBcHkRqKPlKGlZ6cSjV_-Ml5xMBMs",
+  authDomain: "bidsofts.firebaseapp.com",
+  databaseURL: "https://bidsofts-default-rtdb.firebaseio.com",
+  projectId: "bidsofts",
+  storageBucket: "bidsofts.firebasestorage.app",
+  messagingSenderId: "510637797990",
+  appId: "1:510637797990:web:4c37789d361d16b24df3a7"
 };
 
 let appFirebase;
