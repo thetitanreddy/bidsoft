@@ -20,11 +20,15 @@ let db;
 let auctionRef;
 
 try {
+  console.log("Initializing Firebase...");
   appFirebase = initializeApp(firebaseConfig);
+  console.log("Getting Database...");
   db = getDatabase(appFirebase);
+  console.log("Setting Database Ref...");
   auctionRef = ref(db, 'auction_v1');
+  console.log("Firebase initialized successfully");
 } catch (e) {
-  console.warn("Failed to initialize Firebase", e);
+  console.error("Failed to initialize Firebase", e);
 }
 
 const CCY = 'Φ';
@@ -180,27 +184,47 @@ function renderEntry(){
   const nameIn = document.getElementById('nameIn');
   nameIn.focus();
   const go = async ()=>{
-    const name = nameIn.value.trim();
-    if(name.length<2){ document.getElementById('err').textContent='Please enter a name (2+ characters).'; return; }
-    if(!auctionRef) { document.getElementById('err').textContent='Firebase not configured. Please add config to app.js.'; return; }
-    ME.name=name;
-    await joinSession();
+    const errDiv = document.getElementById('err');
+    errDiv.style.color = 'var(--crimson-bright)';
+    try {
+      console.log("Enter button clicked");
+      const name = nameIn.value.trim();
+      if(name.length<2){ errDiv.textContent='Please enter a name (2+ characters).'; return; }
+      if(!auctionRef) { errDiv.textContent='Firebase not configured (auctionRef is null). Check console.'; return; }
+      ME.name=name;
+      errDiv.textContent='Connecting to auction...';
+      console.log("Calling joinSession for:", name);
+      await joinSession();
+    } catch(err) {
+      console.error("Error in go():", err);
+      errDiv.textContent='Error joining: ' + err.message;
+    }
   };
   document.getElementById('enterBtn').onclick=go;
   nameIn.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
 }
 
 async function joinSession(){
-  state = (await loadState()) || emptyState();
-  localRev = state.rev||0;
-  await mutate(s=>{
-    s.participants[ME.name] = { name:ME.name, role:ME.role, lastSeen:now(),
-      joinedAt:(s.participants[ME.name]?.joinedAt)||now() };
-    return s;
-  });
-  startLoops();
-  if(ME.role==='auctioneer') mountAdmin(); else mountBidder();
-  renderFromState(state);
+  console.log("joinSession started");
+  try {
+    state = (await loadState()) || emptyState();
+    console.log("Loaded remote state:", state);
+    localRev = state.rev||0;
+    await mutate(s=>{
+      s.participants[ME.name] = { name:ME.name, role:ME.role, lastSeen:now(),
+        joinedAt:(s.participants[ME.name]?.joinedAt)||now() };
+      return s;
+    });
+    console.log("Participant added to state");
+    startLoops();
+    if(ME.role==='auctioneer') mountAdmin(); else mountBidder();
+    console.log("Mounted skeleton");
+    renderFromState(state);
+    console.log("joinSession complete");
+  } catch(err) {
+    console.error("Critical error in joinSession:", err);
+    throw err; // Pass to go() error handler
+  }
 }
 
 function startLoops(){
