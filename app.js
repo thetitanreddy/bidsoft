@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // ============================================================
 // FIREBASE CONFIGURATION
@@ -18,12 +19,16 @@ const firebaseConfig = {
 let appFirebase;
 let db;
 let auctionRef;
+let auth;
+let provider;
 
 try {
   console.log("Initializing Firebase...");
   appFirebase = initializeApp(firebaseConfig);
-  console.log("Getting Database...");
+  console.log("Getting Database & Auth...");
   db = getDatabase(appFirebase);
+  auth = getAuth(appFirebase);
+  provider = new GoogleAuthProvider();
   console.log("Setting Database Ref...");
   auctionRef = ref(db, 'auction_v1');
   console.log("Firebase initialized successfully");
@@ -188,36 +193,40 @@ function renderEntry(){
       <h1>The Phantom <em>Auction</em></h1>
       <p class="sub">A live sale of things that do not exist. Bidders push the value upward in phantom credits; when the Auctioneer drops the gavel, the full session report is delivered to them.</p>
       <div class="card">
-        <div class="field">
-          <label>Your name</label>
-          <input id="nameIn" maxlength="22" placeholder="e.g. Marguerite" autocomplete="off" />
-        </div>
-        <div class="err" id="err"></div>
-        <button class="btn" id="enterBtn" style="width:100%">Enter the Room →</button>
+        <div class="err" id="err" style="margin-bottom: 15px"></div>
+        <button class="btn" id="enterBtn" style="width:100%; display: flex; justify-content: center; align-items: center; gap: 10px;">
+          <svg style="width:18px;height:18px" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z" /></svg>
+          Sign in with Google
+        </button>
       </div>
     </div>`;
 
-  const nameIn = document.getElementById('nameIn');
-  nameIn.focus();
   const go = async ()=>{
     const errDiv = document.getElementById('err');
     errDiv.style.color = 'var(--crimson-bright)';
     try {
-      console.log("Enter button clicked");
-      const name = nameIn.value.trim();
-      if(name.length<2){ errDiv.textContent='Please enter a name (2+ characters).'; return; }
-      if(!auctionRef) { errDiv.textContent='Firebase not configured (auctionRef is null). Check console.'; return; }
-      ME.name=name;
+      console.log("Google Sign-In clicked");
+      if(!auctionRef || !auth) { errDiv.textContent='Firebase not configured. Check console.'; return; }
+      
+      errDiv.textContent='Waiting for Google authentication...';
+      const result = await signInWithPopup(auth, provider);
+      const name = result.user.displayName;
+      
+      if(!name){ errDiv.textContent='Could not read your Google name.'; return; }
+      ME.name = name;
       errDiv.textContent='Connecting to auction...';
       console.log("Calling joinSession for:", name);
       await joinSession();
     } catch(err) {
       console.error("Error in go():", err);
-      errDiv.textContent='Error joining: ' + err.message;
+      if (err.code === 'auth/popup-closed-by-user') {
+        errDiv.textContent='Sign-in cancelled.';
+      } else {
+        errDiv.textContent='Error joining: ' + err.message;
+      }
     }
   };
   document.getElementById('enterBtn').onclick=go;
-  nameIn.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
 }
 
 async function joinSession(){
