@@ -129,19 +129,39 @@ function mergeStates(remote, local) {
   for (const [n, p] of Object.entries(local.participants || {}))
     if (!participants[n] || (p.lastSeen || 0) > (participants[n].lastSeen || 0)) participants[n] = p;
 
-  const out = { ...remote, ...local, bids, participants };
+  const out = { ...remote, bids, participants };
 
-  if (!localCleared) {
-    const lotsMap = new Map();
-    (remote.lots || []).forEach(l => lotsMap.set(l.id, l));
-    (local.lots || []).forEach(l => lotsMap.set(l.id, l));
-    out.lots = [...lotsMap.values()];
-    const rHist = remote.history || [];
-    const lHist = local.history || [];
-    out.history = rHist.length > lHist.length ? rHist : lHist;
-  } else {
+  if (localCleared) {
+    out.clearSeq = local.clearSeq;
+    out.status = local.status;
+    out.startedAt = local.startedAt;
+    out.closedAt = local.closedAt;
+    out.realWinner = local.realWinner;
     out.lots = [...(local.lots || [])];
     out.history = local.history || [];
+  } else {
+    if (ME.role === 'auctioneer') {
+      out.status = local.status;
+      out.startedAt = local.startedAt;
+      out.closedAt = local.closedAt;
+      if (local.realWinner) out.realWinner = local.realWinner;
+      
+      const lotsMap = new Map();
+      (remote.lots || []).forEach(l => lotsMap.set(l.id, l));
+      (local.lots || []).forEach(l => {
+        const existing = lotsMap.get(l.id);
+        if (existing) lotsMap.set(l.id, { ...existing, ...l, deleted: existing.deleted || l.deleted });
+        else lotsMap.set(l.id, l);
+      });
+      out.lots = [...lotsMap.values()];
+      
+      const rHist = remote.history || [];
+      const lHist = local.history || [];
+      out.history = rHist.length > lHist.length ? rHist : lHist;
+    } else {
+      out.lots = remote.lots ? [...remote.lots] : [];
+      out.history = remote.history ? [...remote.history] : [];
+    }
   }
 
   if (out.lots) {
@@ -154,6 +174,7 @@ function mergeStates(remote, local) {
         lot.value = 0; lot.leader = null;
       }
     });
+    out.totalPool = out.lots.reduce((sum, lot) => sum + (lot.value || 0), 0);
   }
   return out;
 }
