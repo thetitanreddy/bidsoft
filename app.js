@@ -228,6 +228,7 @@ function renderEntry(){
       
       if(!name){ errDiv.textContent='Could not read your Google name.'; return; }
       ME.name = name;
+      ME.email = result.user.email;
       errDiv.textContent='Connecting to auction...';
       console.log("Calling joinSession for:", name);
       await joinSession();
@@ -250,7 +251,7 @@ async function joinSession(){
     console.log("Loaded remote state:", state);
     localRev = state.rev||0;
     await mutate(s=>{
-      s.participants[ME.name] = { name:ME.name, role:ME.role, lastSeen:now(),
+      s.participants[ME.name] = { name:ME.name, email:ME.email, role:ME.role, lastSeen:now(),
         joinedAt:(s.participants[ME.name]?.joinedAt)||now() };
       return s;
     });
@@ -273,7 +274,7 @@ function startLoops(){
 async function heartbeat(){
   await mutate(s=>{
     if(s.participants[ME.name]) s.participants[ME.name].lastSeen=now();
-    else s.participants[ME.name]={name:ME.name,role:ME.role,lastSeen:now(),joinedAt:now()};
+    else s.participants[ME.name]={name:ME.name, email:ME.email, role:ME.role, lastSeen:now(), joinedAt:now()};
     return s;
   });
 }
@@ -642,7 +643,7 @@ function buildReportData(s){
     closedAt:new Date(s.closedAt||now()).toISOString(),
     startedAt:s.startedAt?new Date(s.startedAt).toISOString():null,
     auctioneer:ME.name,
-    bidders:Object.values(s.participants).filter(p=>p.role==='bidder').map(p=>({name:p.name,paddle:paddleFor(p.name)})),
+    bidders:Object.values(s.participants).filter(p=>p.role==='bidder').map(p=>({name:p.name, email:p.email, paddle:paddleFor(p.name)})),
     summary:{
       lotsOffered:s.history.length,
       lotsSold:winners.length,
