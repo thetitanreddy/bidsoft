@@ -51,7 +51,8 @@ let skeletonRole = null;
 function emptyState() {
   return {
     rev: 0, clearSeq: 0, status: 'closed', lots: [],
-    bids: [], participants: {}, history: [], startedAt: null, closedAt: null, seq: 0
+    bids: [], participants: {}, history: [], startedAt: null, closedAt: null, seq: 0,
+    totalPool: 0, realWinner: null
   };
 }
 
@@ -284,7 +285,8 @@ async function joinSession() {
     await mutate(s => {
       s.participants[ME.name] = {
         name: ME.name, email: ME.email, role: ME.role, lastSeen: now(),
-        joinedAt: (s.participants[ME.name]?.joinedAt) || now()
+        joinedAt: (s.participants[ME.name]?.joinedAt) || now(),
+        wallet: s.participants[ME.name]?.wallet !== undefined ? s.participants[ME.name].wallet : (ME.role === 'auctioneer' ? 0 : 1000)
       };
       return s;
     });
@@ -307,7 +309,10 @@ function startLoops() {
 async function heartbeat() {
   await mutate(s => {
     if (s.participants[ME.name]) s.participants[ME.name].lastSeen = now();
-    else s.participants[ME.name] = { name: ME.name, email: ME.email, role: ME.role, lastSeen: now(), joinedAt: now() };
+    else s.participants[ME.name] = { 
+      name: ME.name, email: ME.email, role: ME.role, lastSeen: now(), joinedAt: now(),
+      wallet: ME.role === 'auctioneer' ? 0 : 1000
+    };
     return s;
   });
 }
@@ -341,6 +346,15 @@ async function placeBid(lotId, amount) {
     const lot = (s.lots || []).find(l => l.id === lotId);
     if (!lot) { reject = 'nolot'; return false; }
     if (amount <= (lot.value || 0)) { reject = 'low'; return false; }
+    
+    if (!s.participants[ME.name] || (s.participants[ME.name].wallet || 0) < amount) {
+      reject = 'insufficient'; return false;
+    }
+
+    s.participants[ME.name].wallet -= amount;
+    s.participants[ME.name].lastSeen = now() + 2000;
+    s.totalPool = (s.totalPool || 0) + amount;
+
     s.seq = (s.seq || 0) + 1;
     lot.value = amount; lot.leader = ME.name;
     s.bids.push({
@@ -353,6 +367,7 @@ async function placeBid(lotId, amount) {
   if (reject === 'closed') { toast('The sale just closed.'); }
   else if (reject === 'low') { toast('Outbid — raise higher.'); }
   else if (reject === 'nolot') { toast('Product not found.'); }
+  else if (reject === 'insufficient') { toast('Insufficient coins in wallet.'); }
   else {
     toast(`Bid placed — ${fmt(amount)}`);
   }
@@ -375,6 +390,7 @@ function mountAdmin() {
     </div>
     <div id="adminLotList" class="panel" style="margin-bottom:20px; display:none;"></div>
     <div class="statgrid" id="statgrid"></div>
+    <div id="winnerSlot" style="margin-bottom:20px;"></div>
     <div id="reportSlot"></div>
     <div class="grid2">
       <div class="panel">
@@ -423,9 +439,22 @@ function wireAdminLotForm(s) {
       listEl.innerHTML = '<h3>Added Products (' + s.lots.length + ')</h3><div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">' + 
         s.lots.map(lot => `<div style="display:flex; align-items:center; gap:15px; background:var(--ink-2); padding:10px; border:1px solid var(--line); border-radius:6px;">
           ${lot.photoUrl ? `<div style="width:50px; height:50px; background-image:url('${esc(lot.photoUrl)}'); background-size:cover; border-radius:4px;"></div>` : ''}
-          <div><div style="font-weight:bold; color:var(--cream);">${esc(lot.title)}</div><div style="font-size:12px; color:var(--muted);">${esc(lot.blurb)}</div></div>
+          <div style="flex:1"><div style="font-weight:bold; color:var(--cream);">${esc(lot.title)}</div><div style="font-size:12px; color:var(--muted);">${esc(lot.blurb)}</div></div>
+          <button class="btn ghost danger rm-lot-btn" data-id="${lot.id}" style="padding:4px 8px; font-size:12px;">Remove</button>
         </div>`).join('') + 
         '</div>';
+        
+      listEl.querySelectorAll('.rm-lot-btn').forEach(btn => {
+        btn.onclick = async () => {
+          const id = btn.dataset.id;
+          await mutate(state => {
+            if (state.status === 'open') return state;
+            state.lots = (state.lots || []).filter(l => l.id !== id);
+            return state;
+          });
+          toast('Product removed.');
+        };
+      });
     }
   }
 }
@@ -462,6 +491,7 @@ async function openSession() {
     s.clearSeq = (s.clearSeq || 0) + 1;
     s.status = 'open'; s.startedAt = now(); s.closedAt = null;
     s.history = []; s.bids = [];
+    s.totalPool = 0; s.realWinner = null;
     if (s.lots) s.lots.forEach(l => { l.value = 0; l.leader = null; });
     return s;
   });
@@ -494,7 +524,7 @@ async function resetSession() {
     n.clearSeq = c; n.rev = r;
     return n;
   });
-  await mutate(s => { s.participants[ME.name] = { name: ME.name, role: ME.role, lastSeen: now(), joinedAt: now() }; return s; });
+  await mutate(s => { s.participants[ME.name] = { name: ME.name, email: ME.email, role: ME.role, lastSeen: now(), joinedAt: now(), wallet: ME.role === 'auctioneer' ? 0 : 1000 }; return s; });
   toast('Session reset.');
 }
 async function clearBidsSession() {
@@ -502,6 +532,7 @@ async function clearBidsSession() {
     s.clearSeq = (s.clearSeq || 0) + 1;
     s.bids = [];
     s.history = [];
+    s.totalPool = 0; s.realWinner = null;
     if (s.lots) s.lots.forEach(l => { l.value = 0; l.leader = null; });
     return s;
   });
@@ -510,6 +541,7 @@ async function clearBidsSession() {
 
 function topbar() {
   const adm = ME.role === 'auctioneer';
+  const walletBalance = state && state.participants && state.participants[ME.name] ? (state.participants[ME.name].wallet || 0) : 0;
   return `
     <div class="topbar">
       <div class="brand">
@@ -518,6 +550,7 @@ function topbar() {
       </div>
       <div class="who">
         <span class="status-pill" id="statusPill"><span class="dot"></span><span id="statusTxt">—</span></span>
+        <span class="wallet-badge" style="margin-right:15px; padding:4px 8px; background:var(--ink-2); border-radius:4px; font-family:monospace; color:var(--gold);">🪙 ${Math.round(walletBalance)} coins</span>
         <span class="paddle">No. ${paddleFor(ME.name)}</span>
         <span>${esc(ME.name)}</span>
         <span class="badge ${adm ? 'adm' : ''}">${adm ? 'Auctioneer' : 'Bidder'}</span>
@@ -590,6 +623,24 @@ function renderBidder(s) {
           <div class="lot-tag">${s.status === 'closed' && s.history.length ? 'SALE CONCLUDED' : 'STANDBY'}</div>
           <div class="lot-title" style="font-style:normal;color:var(--cream-dim)">${s.history.length ? 'The Final Records' : 'The room awaits.'}</div>
           <div class="lot-blurb" style="margin: 0 auto 30px;">${s.history.length ? 'The auction has ended. Congratulations to the highest bidders!' : 'No active products to bid on.'}</div>
+          
+          ${s.status === 'closed' ? (
+            s.realWinner ? `
+              <div style="background:var(--panel-2); border:1px solid var(--gold); border-radius:8px; padding:25px; margin-bottom:30px; box-shadow:0 10px 30px -10px rgba(205,163,90,0.3);">
+                <div style="color:var(--muted); font-size:14px; text-transform:uppercase; letter-spacing:2px; margin-bottom:10px;">The Real Winner</div>
+                <div style="color:var(--gold-bright); font-size:42px; font-weight:700; font-family:'Cormorant Garamond',serif;">${esc(s.realWinner.name)}</div>
+                <div style="color:var(--cream); font-size:18px; margin: 10px 0;">won the pool of 🪙 ${Math.round(s.realWinner.prize)} coins!</div>
+                <div style="color:var(--muted); font-style:italic; max-width:80%; margin: 0 auto; line-height:1.5;">"${esc(s.realWinner.explanation)}"</div>
+              </div>
+            ` : `
+              <div style="background:var(--ink-2); border:1px dashed var(--line); border-radius:8px; padding:20px; margin-bottom:30px; color:var(--muted);">
+                <div class="spinner" style="display:inline-block; width:20px; height:20px; border:2px solid var(--muted); border-top-color:var(--cream); border-radius:50%; animation:spin 1s linear infinite; margin-bottom:10px;"></div>
+                <div>Waiting for the Auctioneer to announce the Real Winner...</div>
+                <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+              </div>
+            `
+          ) : ''}
+
           ${s.status === 'closed' && s.history.length ? `
             <div style="max-width: 600px; margin: 0 auto;">
               ${winnersList || noWinners}
@@ -632,8 +683,42 @@ function renderAdmin(s) {
       <div class="stat"><div class="sl">Total Lots</div><div class="sv">${totalLots}</div></div>
       <div class="stat"><div class="sl">Bidders Online</div><div class="sv">${online}</div></div>
       <div class="stat"><div class="sl">Total Bids</div><div class="sv">${totalBids}</div></div>
-      <div class="stat"><div class="sl">Lots Sold</div><div class="sv">${s.history.filter(h => h.winner).length}</div></div>`;
+      <div class="stat"><div class="sl">Total Pool</div><div class="sv">🪙 ${s.totalPool || 0}</div></div>`;
   }
+  
+  const ws = document.getElementById('winnerSlot');
+  if (ws) {
+    if (s.status === 'closed') {
+      if (s.realWinner) {
+        ws.innerHTML = `<div class="panel" style="border: 1px solid var(--gold); background: var(--panel-2);">
+          <h3 style="color:var(--gold-bright); margin-top:0;">Real Winner Announced!</h3>
+          <p style="font-size:18px;"><strong>${esc(s.realWinner.name)}</strong> won 🪙 ${Math.round(s.realWinner.prize)} coins.</p>
+          <p style="color:var(--muted); font-style:italic;">"${esc(s.realWinner.explanation)}"</p>
+        </div>`;
+      } else {
+        const bidders = Object.values(s.participants).filter(p => p.role === 'bidder').map(p => p.name);
+        const options = bidders.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
+        ws.innerHTML = `<div class="panel" style="border: 1px solid var(--crimson-bright); background: rgba(220,53,69,0.05);">
+          <h3 style="margin-top:0; color:var(--cream);">Announce the Real Winner</h3>
+          <p style="font-size:14px; color:var(--muted);">Select the real winner for this session. They will receive 90% of the total bid pool (🪙 ${Math.round(s.totalPool || 0)}), and the admin receives 10%.</p>
+          <div class="field" style="margin-top:10px;"><label>Select Bidder</label><select id="winnerSelect" style="width:100%; padding:10px; background:var(--ink); color:var(--cream); border:1px solid var(--line); border-radius:6px;">${options}</select></div>
+          <div class="field" style="margin-top:10px;"><label>Explanation</label><textarea id="winnerExplanation" placeholder="Why did they win?" style="width:100%; padding:10px; background:var(--ink); color:var(--cream); border:1px solid var(--line); border-radius:6px; resize:vertical; min-height:60px;"></textarea></div>
+          <button class="btn" id="announceWinnerBtn" style="margin-top:10px;">Announce Winner & Distribute Pool</button>
+        </div>`;
+        const btn = document.getElementById('announceWinnerBtn');
+        if (btn) btn.onclick = async () => {
+          const wName = document.getElementById('winnerSelect').value;
+          const expl = document.getElementById('winnerExplanation').value;
+          if (!wName) return toast('Select a winner.');
+          if (!expl) return toast('Provide an explanation.');
+          await announceRealWinner(wName, expl);
+        };
+      }
+    } else {
+      ws.innerHTML = '';
+    }
+  }
+  
   const slot = document.getElementById('reportSlot');
   if (slot) {
     if (s.status === 'closed' && s.history.length) { slot.innerHTML = reportMarkup(s); wireReport(s); }
@@ -641,6 +726,36 @@ function renderAdmin(s) {
     slot._hadReport = (s.status === 'closed' && s.history.length > 0);
   }
 }
+
+window.announceRealWinner = async function(winnerName, explanation) {
+  await mutate(s => {
+    if (s.status !== 'closed') return false;
+    if (s.realWinner) return false;
+    
+    const pool = s.totalPool || 0;
+    const winnerPrize = pool * 0.9;
+    const adminCut = pool * 0.1;
+    
+    s.realWinner = {
+      name: winnerName,
+      explanation: explanation,
+      prize: winnerPrize
+    };
+    
+    if (s.participants[winnerName]) {
+      s.participants[winnerName].wallet = (s.participants[winnerName].wallet || 0) + winnerPrize;
+      s.participants[winnerName].lastSeen = now() + 5000;
+    }
+    
+    if (s.participants[ME.name]) {
+      s.participants[ME.name].wallet = (s.participants[ME.name].wallet || 0) + adminCut;
+      s.participants[ME.name].lastSeen = now() + 5000;
+    }
+    
+    return s;
+  });
+  toast('Real winner announced!');
+};
 
 function reportMarkup(s) {
   const winners = s.history.filter(h => h.winner);
