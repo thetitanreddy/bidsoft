@@ -66,6 +66,14 @@ function emptyState(){
            bids:[], participants:{}, history:[], startedAt:null, closedAt:null, seq:0 };
 }
 
+function sanitizeState(s) {
+  if (!s) return emptyState();
+  s.bids = s.bids || [];
+  s.history = s.history || [];
+  s.participants = s.participants || {};
+  return s;
+}
+
 let state = emptyState();
 let localRev = 0;
 let dirty = false;
@@ -84,7 +92,7 @@ async function loadState(){
       new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout: Could not connect to Firebase Realtime Database. Did you enable it in the Firebase Console?")), 5000))
     ]);
     console.log("Firebase state fetched successfully.");
-    if(snap.exists()) return snap.val(); 
+    if(snap.exists()) return sanitizeState(snap.val()); 
   }
   catch(e){ 
     console.error("Firebase get error:", e); 
@@ -165,7 +173,8 @@ export function initApp(role) {
             const remote = snapshot.val();
             if (!remote) return;
             if ((remote.rev||0) <= localRev) return;
-            state = remote; localRev = remote.rev||0;
+            state = sanitizeState(remote); 
+            localRev = remote.rev||0;
             if (ME.name) {
                 renderFromState(state);
             }
