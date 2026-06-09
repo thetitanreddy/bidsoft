@@ -50,7 +50,7 @@ let skeletonRole = null;
 
 function emptyState() {
   return {
-    rev: 0, status: 'closed', lots: [],
+    rev: 0, clearSeq: 0, status: 'closed', lots: [],
     bids: [], participants: {}, history: [], startedAt: null, closedAt: null, seq: 0
   };
 }
@@ -114,21 +114,43 @@ function scheduleFlush() {
 
 function mergeStates(remote, local) {
   if (!remote) return local;
+
+  const localCleared = (local.clearSeq || 0) > (remote.clearSeq || 0);
+  let remoteBids = localCleared ? [] : (remote.bids || []);
+
   const map = new Map(); const k = b => b.user + '|' + b.ts + '|' + b.amount;
-  (remote.bids || []).forEach(b => map.set(k(b), b));
+  remoteBids.forEach(b => map.set(k(b), b));
   (local.bids || []).forEach(b => map.set(k(b), b));
   let bids = [...map.values()].sort((a, b) => a.ts - b.ts);
   if (bids.length > 300) bids = bids.slice(-300);
+
   const participants = { ...(remote.participants || {}) };
   for (const [n, p] of Object.entries(local.participants || {}))
     if (!participants[n] || (p.lastSeen || 0) > (participants[n].lastSeen || 0)) participants[n] = p;
-  const out = { ...local, bids, participants };
+
+  const out = { ...remote, ...local, bids, participants };
+
+  if (!localCleared) {
+    const lotsMap = new Map();
+    (remote.lots || []).forEach(l => lotsMap.set(l.id, l));
+    (local.lots || []).forEach(l => lotsMap.set(l.id, l));
+    out.lots = [...lotsMap.values()];
+    const rHist = remote.history || [];
+    const lHist = local.history || [];
+    out.history = rHist.length > lHist.length ? rHist : lHist;
+  } else {
+    out.lots = [...(local.lots || [])];
+    out.history = local.history || [];
+  }
+
   if (out.lots) {
     out.lots.forEach(lot => {
       const cur = bids.filter(b => b.lotId === lot.id);
       if (cur.length) {
         const top = cur.reduce((m, b) => b.amount > m.amount ? b : m, cur[0]);
-        if (top.amount >= (lot.value || 0)) { lot.value = top.amount; lot.leader = top.user; }
+        lot.value = top.amount; lot.leader = top.user;
+      } else {
+        lot.value = 0; lot.leader = null;
       }
     });
   }
@@ -437,6 +459,7 @@ function wireAdminControls(state) {
 
 async function openSession() {
   await mutate(s => {
+    s.clearSeq = (s.clearSeq || 0) + 1;
     s.status = 'open'; s.startedAt = now(); s.closedAt = null;
     s.history = []; s.bids = [];
     if (s.lots) s.lots.forEach(l => { l.value = 0; l.leader = null; });
@@ -464,12 +487,19 @@ async function closeSession() {
   toast('Gavel dropped — session closed.');
 }
 async function resetSession() {
-  await mutate(() => emptyState());
+  await mutate(s => { 
+    const c = (s.clearSeq || 0) + 1;
+    const r = (s.rev || 0);
+    const n = emptyState();
+    n.clearSeq = c; n.rev = r;
+    return n;
+  });
   await mutate(s => { s.participants[ME.name] = { name: ME.name, role: ME.role, lastSeen: now(), joinedAt: now() }; return s; });
   toast('Session reset.');
 }
 async function clearBidsSession() {
   await mutate(s => {
+    s.clearSeq = (s.clearSeq || 0) + 1;
     s.bids = [];
     s.history = [];
     if (s.lots) s.lots.forEach(l => { l.value = 0; l.leader = null; });
