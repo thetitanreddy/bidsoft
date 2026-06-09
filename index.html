@@ -12,6 +12,16 @@
 <body>
 <div class="wrap" id="app"></div>
 <div class="toast" id="toast"></div>
+<div id="error-log" style="color: red; background: black; padding: 20px; font-family: monospace; white-space: pre-wrap; z-index: 9999; position: absolute; top: 0; left: 0; right: 0;"></div>
+<script>
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+  document.getElementById('error-log').innerHTML += 'ERROR: ' + msg + '\n' + url + ':' + lineNo + ':' + columnNo + '\n' + (error && error.stack ? error.stack : '') + '\n\n';
+  return false;
+};
+window.addEventListener('unhandledrejection', function(event) {
+  document.getElementById('error-log').innerHTML += 'PROMISE ERROR: ' + event.reason + '\n\n';
+});
+</script>
 
 <script type="module">
 import { initApp } from './app.js';

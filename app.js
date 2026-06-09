@@ -287,7 +287,7 @@ function wireBidPanel(snap){
     if(reject==='closed'){ toast('The sale just closed.'); }
     else if(reject==='low'){ toast('Outbid — raise higher.'); }
     else { const ci=document.getElementById('customBid'); if(ci) ci.value='';
-      toast(\`Bid placed — \${fmt(amount)}\`); }
+      toast(`Bid placed — ${fmt(amount)}`); }
   };
 
   panel.querySelectorAll('.chip[data-add]').forEach(b=>{
