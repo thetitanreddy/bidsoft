@@ -3,25 +3,28 @@ import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/fir
 
 // ============================================================
 // FIREBASE CONFIGURATION
-// Config is now fetched securely from Vercel Environment Variables
+// (Keys are intentionally public for web apps)
 // ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyAtlfpb_wqzW96V2pX3gguwKUc3_hq1KjU",
+  authDomain: "bid-soft.firebaseapp.com",
+  databaseURL: "https://bid-soft-default-rtdb.firebaseio.com",
+  projectId: "bid-soft",
+  storageBucket: "bid-soft.firebasestorage.app",
+  messagingSenderId: "898223898663",
+  appId: "1:898223898663:web:989c1336b393d2fd4bce02"
+};
+
 let appFirebase;
 let db;
 let auctionRef;
 
 try {
-  const res = await fetch('/api/config');
-  const firebaseConfig = await res.json();
-  
-  if (firebaseConfig.apiKey) {
-    appFirebase = initializeApp(firebaseConfig);
-    db = getDatabase(appFirebase);
-    auctionRef = ref(db, 'auction_v1');
-  } else {
-    console.warn("Firebase env variables not found. Please add them in Vercel.");
-  }
+  appFirebase = initializeApp(firebaseConfig);
+  db = getDatabase(appFirebase);
+  auctionRef = ref(db, 'auction_v1');
 } catch (e) {
-  console.warn("Failed to fetch Firebase config from /api/config", e);
+  console.warn("Failed to initialize Firebase", e);
 }
 
 const CCY = 'Φ';
