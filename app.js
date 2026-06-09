@@ -343,7 +343,7 @@ async function placeBid(lotId, amount) {
   let reject = null;
   await mutate(s => {
     if (s.status !== 'open') { reject = 'closed'; return false; }
-    const lot = (s.lots || []).find(l => l.id === lotId);
+    const lot = (s.lots || []).find(l => l.id === lotId && !l.deleted);
     if (!lot) { reject = 'nolot'; return false; }
     if (amount <= (lot.value || 0)) { reject = 'low'; return false; }
     
@@ -444,11 +444,12 @@ function wireAdminLotForm(s) {
   const listEl = document.getElementById('adminLotList');
   if (listEl) {
     listEl.style.display = s.status === 'open' ? 'none' : 'block';
-    if (!s.lots || s.lots.length === 0) {
+    const activeLots = (s.lots || []).filter(l => !l.deleted);
+    if (!activeLots || activeLots.length === 0) {
       listEl.innerHTML = '<div class="empty">No products added yet.</div>';
     } else {
-      listEl.innerHTML = '<h3>Added Products (' + s.lots.length + ')</h3><div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">' + 
-        s.lots.map(lot => `<div style="display:flex; align-items:center; gap:15px; background:var(--ink-2); padding:10px; border:1px solid var(--line); border-radius:6px;">
+      listEl.innerHTML = '<h3>Added Products (' + activeLots.length + ')</h3><div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">' + 
+        activeLots.map(lot => `<div style="display:flex; align-items:center; gap:15px; background:var(--ink-2); padding:10px; border:1px solid var(--line); border-radius:6px;">
           ${lot.photoUrl ? `<div style="width:50px; height:50px; background-image:url('${esc(lot.photoUrl)}'); background-size:cover; border-radius:4px;"></div>` : ''}
           <div style="flex:1"><div style="font-weight:bold; color:var(--cream);">${esc(lot.title)}</div><div style="font-size:12px; color:var(--muted);">${esc(lot.blurb)}</div></div>
           <button class="btn ghost danger rm-lot-btn" data-id="${lot.id}" style="padding:4px 8px; font-size:12px;">Remove</button>
@@ -460,7 +461,8 @@ function wireAdminLotForm(s) {
           const id = btn.dataset.id;
           await mutate(state => {
             if (state.status === 'open') return state;
-            state.lots = (state.lots || []).filter(l => l.id !== id);
+            const lot = (state.lots || []).find(l => l.id === id);
+            if (lot) lot.deleted = true;
             return state;
           });
           toast('Product removed.');
@@ -510,8 +512,9 @@ async function openSession() {
 }
 async function closeSession() {
   await mutate(s => {
-    if (s.status === 'open' && s.lots) {
-      s.lots.forEach(lot => {
+    const activeLots = (s.lots || []).filter(l => !l.deleted);
+    if (s.status === 'open' && activeLots.length) {
+      activeLots.forEach(lot => {
         if (lot.leader) {
           s.history.push({
             lot: lot.title, winner: lot.leader, value: lot.value,
@@ -601,8 +604,9 @@ function updateStatusPill(s) {
 function renderBidder(s) {
   const grid = document.getElementById('catalogGrid');
   if (grid) {
-    if (s.status === 'open' && s.lots && s.lots.length > 0) {
-      grid.innerHTML = s.lots.map(lot => `
+    const activeLots = (s.lots || []).filter(l => !l.deleted);
+    if (s.status === 'open' && activeLots.length > 0) {
+      grid.innerHTML = activeLots.map(lot => `
         <div class="lot-card" style="background:linear-gradient(180deg,var(--panel),var(--panel-2)); border:1px solid var(--line); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow);">
           ${lot.photoUrl ? `<div class="lot-photo" style="background-image:url('${esc(lot.photoUrl)}'); height:200px; background-size:cover; background-position:center; border-bottom:1px solid var(--line);"></div>` : ''}
           <div class="lot-details" style="padding:20px; flex:1; display:flex; flex-direction:column;">
@@ -696,7 +700,7 @@ function renderAdmin(s) {
   const sg = document.getElementById('statgrid');
   if (sg) {
     const online = Object.values(s.participants).filter(p => isOnline(p) && p.role === 'bidder').length;
-    const totalLots = s.lots ? s.lots.length : 0;
+    const totalLots = s.lots ? s.lots.filter(l => !l.deleted).length : 0;
     const totalBids = s.bids.length;
     sg.innerHTML = `
       <div class="stat"><div class="sl">Status</div><div class="sv sm">${s.status === 'open' ? 'Live' : 'Closed'}</div></div>
