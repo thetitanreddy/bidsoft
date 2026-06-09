@@ -430,7 +430,7 @@ function wireAdminControls(state) {
     if (ob) ob.onclick = openSession;
     const rb = document.getElementById('resetBtn');
     if (rb) rb.onclick = resetSession;
-    const cl = document.getElementById(\'clearBidsBtn\');
+    const cl = document.getElementById('clearBidsBtn');
     if (cl) cl.onclick = clearBidsSession;
   }
 }
@@ -475,7 +475,7 @@ async function clearBidsSession() {
     if (s.lots) s.lots.forEach(l => { l.value = 0; l.leader = null; });
     return s;
   });
-  toast(\'Ledger and bids cleared.\');
+  toast('Ledger and bids cleared.');
 }
 
 function topbar() {
