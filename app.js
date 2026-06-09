@@ -72,8 +72,19 @@ function now(){ return Date.now(); }
 
 async function loadState(){
   if (!auctionRef) return null;
-  try{ const snap = await get(auctionRef); if(snap.exists()) return snap.val(); }
-  catch(e){ console.error("Firebase get error", e); }
+  try{ 
+    console.log("Fetching state from Firebase...");
+    const snap = await Promise.race([
+      get(auctionRef),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout: Could not connect to Firebase Realtime Database. Did you enable it in the Firebase Console?")), 5000))
+    ]);
+    console.log("Firebase state fetched successfully.");
+    if(snap.exists()) return snap.val(); 
+  }
+  catch(e){ 
+    console.error("Firebase get error:", e); 
+    throw e; 
+  }
   return null;
 }
 async function saveState(s){
