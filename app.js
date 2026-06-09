@@ -41,20 +41,7 @@ const ONLINE_MS = 24000;
 const HEARTBEAT_MS = 9000;
 const MIN_WRITE_MS = 1600;
 
-const LOTS = [
-  ["The Last Echo of a Sunday Morning", "Guaranteed never to have happened. Sold as heard."],
-  ["One Carefully Folded Paradox", "Opens into itself. Storage not recommended."],
-  ["A Pocketful of Next Tuesday", "Slightly used. Still ahead of you."],
-  ["The Colour You See With Your Eyes Closed", "Single edition. No two buyers agree on the shade."],
-  ["Half an Inch of the Horizon", "Measured at dusk. Authenticity certificate forthcoming, eventually."],
-  ["The Pause Between Two Heartbeats", "Acquired at great personal silence."],
-  ["A Rumour That Never Quite Happened", "Untraceable. Highly collectible."],
-  ["The Smell of Rain Before It Falls", "Bottled in advance. Do not inhale the future."],
-  ["An Idea You Left at the Door", "Found, but no longer remembered by its owner."],
-  ["The Weight of an Empty Promise", "Heavier than it looks. Comes with regret."],
-  ["A Single Unspoken Word", "Never said aloud. The bidding speaks for it."],
-  ["The Shadow of a Round Number", "Cast at noon. Slightly imaginary."]
-];
+
 
 let ME = { name: null, role: null };
 let lastValue = -1;
@@ -63,7 +50,7 @@ let skeletonRole = null;
 
 function emptyState() {
   return {
-    rev: 0, status: 'closed', lotIndex: -1, lot: null, value: 0, leader: null,
+    rev: 0, status: 'closed', lots: [],
     bids: [], participants: {}, history: [], startedAt: null, closedAt: null, seq: 0
   };
 }
@@ -73,6 +60,7 @@ function sanitizeState(s) {
   s.bids = s.bids || [];
   s.history = s.history || [];
   s.participants = s.participants || {};
+  s.lots = s.lots || [];
   return s;
 }
 
@@ -135,10 +123,14 @@ function mergeStates(remote, local) {
   for (const [n, p] of Object.entries(local.participants || {}))
     if (!participants[n] || (p.lastSeen || 0) > (participants[n].lastSeen || 0)) participants[n] = p;
   const out = { ...local, bids, participants };
-  const cur = bids.filter(b => b.lotIndex === out.lotIndex);
-  if (cur.length) {
-    const top = cur.reduce((m, b) => b.amount > m.amount ? b : m, cur[0]);
-    if (top.amount >= (out.value || 0)) { out.value = top.amount; out.leader = top.user; }
+  if (out.lots) {
+    out.lots.forEach(lot => {
+      const cur = bids.filter(b => b.lotId === lot.id);
+      if (cur.length) {
+        const top = cur.reduce((m, b) => b.amount > m.amount ? b : m, cur[0]);
+        if (top.amount >= (lot.value || 0)) { lot.value = top.amount; lot.leader = top.user; }
+      }
+    });
   }
   return out;
 }
@@ -303,91 +295,45 @@ function mountBidder() {
   const app = document.getElementById('app');
   app.innerHTML = `
     ${topbar()}
-    <div class="stage" id="stage"></div>
+    <div class="catalog-grid" id="catalogGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px;"></div>
     <div class="grid2">
-      <div class="panel" id="bidPanel"></div>
       <div>
         <div class="panel" style="margin-bottom:20px">
           <div class="sectitle"><span>On the floor</span><span id="rosterCount"></span></div>
           <div class="roster" id="roster"></div>
         </div>
-        <div class="panel">
-          <div class="sectitle"><span>Bid feed</span><span id="bidCount"></span></div>
-          <div class="feed" id="feed"></div>
-        </div>
+      </div>
+      <div class="panel">
+        <div class="sectitle"><span>Bid feed</span><span id="bidCount"></span></div>
+        <div class="feed" id="feed"></div>
       </div>
     </div>`;
 }
 
-function bidPanelMarkup(open) {
-  if (!open) {
-    return `<h3>No sale is live</h3>
-      <div class="ph">Bidding opens when a sale is running. Start one now to begin (or wait for the Auctioneer).</div>
-      <button class="btn" id="startSale" style="width:100%;margin-bottom:10px;display:none;">▶ Start the bidding</button>
-      <div class="hint">A lot will be drawn and you can begin placing bids.</div>`;
-  }
-  return `
-    <h3>Raise the bid</h3>
-    <div class="ph">You must exceed the current standing bid. Phantom credits only.</div>
-    <div class="quickrow">
-      <button class="chip" data-add="50">+50</button>
-      <button class="chip" data-add="100">+100</button>
-      <button class="chip" data-add="250">+250</button>
-      <button class="chip" data-add="1000">+1,000</button>
-      <button class="chip rng" data-rng="1">⚡ Random raise</button>
-    </div>
-    <div class="customrow">
-      <input id="customBid" type="number" inputmode="numeric" placeholder="Name your figure…" />
-      <button class="btn" id="placeBtn">Place Bid</button>
-    </div>
-    <div class="hint" id="bidHint"></div>`;
-}
-
-function wireBidPanel(snap) {
-  const open = snap.status === 'open';
-  const panel = document.getElementById('bidPanel');
-  if (!panel) return;
-  if (panel._open !== open) { panel.innerHTML = bidPanelMarkup(open); panel._open = open; }
-  if (!open) {
-    const sb = document.getElementById('startSale');
-    if (sb) sb.onclick = async () => { await openSession(); toast('Sale opened — place your bid!'); };
-    return;
-  }
-
-  const place = async (amount) => {
-    amount = Math.round(Number(amount));
-    if (!amount || amount <= 0) { toast('Enter a valid amount.'); return; }
-    let reject = null;
-    await mutate(s => {
-      if (s.status !== 'open') { reject = 'closed'; return false; }
-      if (amount <= s.value) { reject = 'low'; return false; }
-      s.seq = (s.seq || 0) + 1;
-      s.value = amount; s.leader = ME.name;
-      s.bids.push({
-        id: s.seq, user: ME.name, paddle: paddleFor(ME.name), amount,
-        lot: s.lot?.title || '—', lotIndex: s.lotIndex, ts: now()
-      });
-      if (s.bids.length > 300) s.bids = s.bids.slice(-300);
-      return s;
+async function placeBid(lotId, amount) {
+  amount = Math.round(Number(amount));
+  if (!amount || amount <= 0) { toast('Enter a valid amount.'); return; }
+  let reject = null;
+  await mutate(s => {
+    if (s.status !== 'open') { reject = 'closed'; return false; }
+    const lot = (s.lots || []).find(l => l.id === lotId);
+    if (!lot) { reject = 'nolot'; return false; }
+    if (amount <= (lot.value || 0)) { reject = 'low'; return false; }
+    s.seq = (s.seq || 0) + 1;
+    lot.value = amount; lot.leader = ME.name;
+    s.bids.push({
+      id: s.seq, user: ME.name, paddle: paddleFor(ME.name), amount,
+      lot: lot.title, lotId: lot.id, ts: now()
     });
-    if (reject === 'closed') { toast('The sale just closed.'); }
-    else if (reject === 'low') { toast('Outbid — raise higher.'); }
-    else {
-      const ci = document.getElementById('customBid'); if (ci) ci.value = '';
-      toast(`Bid placed — ${fmt(amount)}`);
-    }
-  };
-
-  panel.querySelectorAll('.chip[data-add]').forEach(b => {
-    b.onclick = () => place(state.value + Number(b.dataset.add));
+    if (s.bids.length > 300) s.bids = s.bids.slice(-300);
+    return s;
   });
-  const rng = panel.querySelector('.chip[data-rng]');
-  if (rng) rng.onclick = () => place(state.value + 25 + Math.floor(Math.random() * 975));
-
-  const customBtn = document.getElementById('placeBtn');
-  const customIn = document.getElementById('customBid');
-  if (customBtn) customBtn.onclick = () => place(customIn.value);
-  if (customIn) customIn.addEventListener('keydown', e => { if (e.key === 'Enter') place(customIn.value); });
+  if (reject === 'closed') { toast('The sale just closed.'); }
+  else if (reject === 'low') { toast('Outbid — raise higher.'); }
+  else if (reject === 'nolot') { toast('Product not found.'); }
+  else {
+    toast(`Bid placed — ${fmt(amount)}`);
+  }
 }
 
 function mountAdmin() {
@@ -396,6 +342,15 @@ function mountAdmin() {
   app.innerHTML = `
     ${topbar()}
     <div class="ctrlrow" id="ctrlrow"></div>
+    <div id="adminLotForm" class="panel" style="margin-bottom:20px; display:none;">
+       <h3>Add a Product to the Catalog</h3>
+       <div class="grid2" style="margin-top: 15px; grid-template-columns: 1fr 1fr;">
+         <div class="field"><label>Product Name</label><input id="newLotTitle" type="text" placeholder="e.g. A Vintage Clock"></div>
+         <div class="field"><label>Photo URL</label><input id="newLotPhoto" type="text" placeholder="https://..."></div>
+       </div>
+       <div class="field"><label>Description</label><input id="newLotBlurb" type="text" placeholder="Short description"></div>
+       <button class="btn" id="addLotBtn">Add Product</button>
+    </div>
     <div class="statgrid" id="statgrid"></div>
     <div id="reportSlot"></div>
     <div class="grid2">
@@ -410,6 +365,33 @@ function mountAdmin() {
     </div>`;
 }
 
+function wireAdminLotForm(s) {
+  const form = document.getElementById('adminLotForm');
+  if (!form) return;
+  form.style.display = s.status === 'open' ? 'none' : 'block';
+  const btn = document.getElementById('addLotBtn');
+  if (btn && !btn.onclick) {
+    btn.onclick = async () => {
+      const title = document.getElementById('newLotTitle').value;
+      const blurb = document.getElementById('newLotBlurb').value;
+      const photoUrl = document.getElementById('newLotPhoto').value;
+      if (!title) return toast('Title required.');
+      await mutate(state => {
+        state.lots = state.lots || [];
+        state.lots.push({
+          id: 'lot_' + now() + Math.floor(Math.random()*1000),
+          title, blurb, photoUrl, value: 0, leader: null
+        });
+        return state;
+      });
+      document.getElementById('newLotTitle').value = '';
+      document.getElementById('newLotBlurb').value = '';
+      document.getElementById('newLotPhoto').value = '';
+      toast('Product added.');
+    };
+  }
+}
+
 function wireAdminControls(state) {
   const row = document.getElementById('ctrlrow');
   if (!row) return;
@@ -417,9 +399,7 @@ function wireAdminControls(state) {
   const sig = open ? 'open' : 'closed';
   if (row._sig !== sig) {
     if (open) {
-      row.innerHTML = `
-        <button class="btn" id="nextLot">⟳ Next Lot</button>
-        <button class="btn danger" id="closeBtn">⚖ Drop the Gavel — Close Session</button>`;
+      row.innerHTML = `<button class="btn danger" id="closeBtn">⚖ Drop the Gavel — Close Session</button>`;
     } else {
       row.innerHTML = `
         <button class="btn" id="openBtn">▶ Open the Sale</button>
@@ -427,8 +407,6 @@ function wireAdminControls(state) {
     }
     row._sig = sig;
 
-    const nl = document.getElementById('nextLot');
-    if (nl) nl.onclick = advanceLot;
     const cb = document.getElementById('closeBtn');
     if (cb) cb.onclick = closeSession;
     const ob = document.getElementById('openBtn');
@@ -438,46 +416,30 @@ function wireAdminControls(state) {
   }
 }
 
-function pickLot(prevIndex) {
-  let i; do { i = Math.floor(Math.random() * LOTS.length); } while (LOTS.length > 1 && i === prevIndex);
-  return { index: i, title: LOTS[i][0], blurb: LOTS[i][1] };
-}
-function finalizeLot(s) {
-  if (s.lot && s.leader) {
-    s.history.push({
-      lot: s.lot.title, winner: s.leader, value: s.value,
-      bidCount: s.bids.filter(b => b.lotIndex === s.lotIndex).length, closedAt: now()
-    });
-  } else if (s.lot) {
-    s.history.push({ lot: s.lot.title, winner: null, value: 0, bidCount: 0, closedAt: now() });
-  }
-}
 async function openSession() {
   await mutate(s => {
-    const L = pickLot(-1);
     s.status = 'open'; s.startedAt = now(); s.closedAt = null;
-    s.history = []; s.bids = []; s.value = 0; s.leader = null;
-    s.lotIndex = L.index; s.lot = { title: L.title, blurb: L.blurb };
+    s.history = []; s.bids = [];
+    if (s.lots) s.lots.forEach(l => { l.value = 0; l.leader = null; });
     return s;
   });
   toast('The sale is open.');
 }
-async function advanceLot() {
-  await mutate(s => {
-    if (s.status !== 'open') return s;
-    finalizeLot(s);
-    const L = pickLot(s.lotIndex);
-    s.lotIndex = L.index; s.lot = { title: L.title, blurb: L.blurb };
-    s.value = 0; s.leader = null;
-    return s;
-  });
-  toast('Next lot on the block.');
-}
 async function closeSession() {
   await mutate(s => {
-    if (s.status === 'open') finalizeLot(s);
+    if (s.status === 'open' && s.lots) {
+      s.lots.forEach(lot => {
+        if (lot.leader) {
+          s.history.push({
+            lot: lot.title, winner: lot.leader, value: lot.value,
+            bidCount: s.bids.filter(b => b.lotId === lot.id).length, closedAt: now()
+          });
+        } else {
+          s.history.push({ lot: lot.title, winner: null, value: 0, bidCount: 0, closedAt: now() });
+        }
+      });
+    }
     s.status = 'closed'; s.closedAt = now();
-    s.lot = null; s.value = 0; s.leader = null; s.lotIndex = -1;
     return s;
   });
   toast('Gavel dropped — session closed.');
@@ -526,74 +488,79 @@ function updateStatusPill(s) {
 }
 
 function renderBidder(s) {
-  const stage = document.getElementById('stage');
-  if (stage) {
-    if (s.status === 'open' && s.lot) {
-      const struct = 'open|' + s.lotIndex + '|' + s.history.length;
-      if (stage._struct !== struct) {
-        stage.innerHTML = `
-          <div class="lot-tag">LOT ${String(s.history.length + 1).padStart(2, '0')} · NOW SELLING</div>
-          <div class="lot-title">${esc(s.lot.title)}</div>
-          <div class="lot-blurb">${esc(s.lot.blurb)}</div>
-          <div class="bigrow">
-            <div><div class="biglabel">Standing bid</div><div class="bigval" id="bigVal">${fmt(s.value)}</div></div>
-            <div><div class="biglabel">Held by</div><div id="heldBy"></div></div>
-          </div>`;
-        stage._struct = struct; lastValue = -1;
-      }
-      const bv = document.getElementById('bigVal');
-      if (bv) {
-        bv.textContent = fmt(s.value);
-        if (s.value > lastValue && lastValue >= 0) { bv.classList.remove('bump'); void bv.offsetWidth; bv.classList.add('bump'); }
-      }
-      lastValue = s.value;
-      const hb = document.getElementById('heldBy');
-      if (hb) hb.innerHTML = s.leader
-        ? `<span class="leadname">${esc(s.leader)}${s.leader === ME.name ? ' <span style="font-size:13px;color:var(--gold)">(you)</span>' : ''}</span>`
-        : `<span class="leadname none">— awaiting first bid —</span>`;
+  const grid = document.getElementById('catalogGrid');
+  if (grid) {
+    if (s.status === 'open' && s.lots && s.lots.length > 0) {
+      grid.innerHTML = s.lots.map(lot => `
+        <div class="lot-card" style="background:linear-gradient(180deg,var(--panel),var(--panel-2)); border:1px solid var(--line); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow);">
+          ${lot.photoUrl ? `<div class="lot-photo" style="background-image:url('${esc(lot.photoUrl)}'); height:200px; background-size:cover; background-position:center; border-bottom:1px solid var(--line);"></div>` : ''}
+          <div class="lot-details" style="padding:20px; flex:1; display:flex; flex-direction:column;">
+             <div class="lot-title" style="font-size:24px; margin:0; line-height:1.2;">${esc(lot.title)}</div>
+             <div class="lot-blurb" style="font-size:14px; margin:8px 0 16px; flex:1;">${esc(lot.blurb)}</div>
+             <div class="bigrow" style="margin-top:0; padding-top:0; border:none; gap:10px; align-items: center;">
+                <div style="flex:1"><div class="biglabel">Highest Bid</div><div class="bigval" style="font-size:24px;">${fmt(lot.value || 0)}</div></div>
+                <div style="font-size:12px; color: var(--muted); text-align:right;">Held by:<br><span style="color:var(--cream); font-weight:600;">${lot.leader ? esc(lot.leader) : '—'}</span></div>
+             </div>
+             <div class="quickrow" style="margin-top:15px; margin-bottom:0;">
+               <button class="chip bid-btn" data-lotid="${lot.id}" data-add="50">+50</button>
+               <button class="chip bid-btn" data-lotid="${lot.id}" data-add="100">+100</button>
+               <button class="chip bid-btn" data-lotid="${lot.id}" data-add="250">+250</button>
+               <button class="chip rng bid-btn" data-lotid="${lot.id}" data-add="1000">+1k</button>
+             </div>
+          </div>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.bid-btn').forEach(btn => {
+        btn.onclick = () => {
+          const lotId = btn.dataset.lotid;
+          const lot = s.lots.find(l => l.id === lotId);
+          if (lot) placeBid(lotId, (lot.value || 0) + Number(btn.dataset.add));
+        };
+      });
     } else {
-      const struct = 'closed|' + s.history.length;
-      if (stage._struct !== struct) {
-        lastValue = -1;
-        stage.innerHTML = `
+      grid.innerHTML = `
+        <div class="stage" style="grid-column: 1 / -1">
           <div class="lot-tag">${s.status === 'closed' && s.history.length ? 'SALE CONCLUDED' : 'STANDBY'}</div>
           <div class="lot-title" style="font-style:normal;color:var(--cream-dim)">${s.history.length ? 'The gavel has fallen.' : 'The room awaits.'}</div>
-          <div class="lot-blurb">${s.history.length ? 'Thank you for bidding. The Auctioneer holds the final record.' : 'No lot is currently on the block. Start a sale below, or wait for the Auctioneer.'}</div>`;
-        if (s.status === 'closed' && s.history.length) renderResultsForBidder(stage, s);
-        stage._struct = struct;
-      }
+          <div class="lot-blurb">${s.history.length ? 'Thank you for bidding. The Auctioneer holds the final record.' : 'No active products to bid on.'}</div>
+          ${s.status === 'closed' && s.history.length ? '<div id="bidderResults"></div>' : ''}
+        </div>
+      `;
+      if (s.status === 'closed' && s.history.length) renderResultsForBidder(document.getElementById('bidderResults'), s);
     }
   }
-  wireBidPanel(s);
 }
 
-function renderResultsForBidder(stage, s) {
+function renderResultsForBidder(container, s) {
+  if (!container) return;
   const rows = s.history.map(h => `
     <tr class="${h.winner ? 'win' : ''}">
       <td>${esc(h.lot)}</td>
       <td>${h.winner ? esc(h.winner) : '<span style="color:var(--muted)">passed in</span>'}</td>
       <td class="num">${h.winner ? fmt(h.value) : '—'}</td>
     </tr>`).join('');
-  stage.insertAdjacentHTML('beforeend', `
+  container.innerHTML = `
     <div class="ledger-title" style="margin-top:24px">Final results</div>
     <div class="scrollx"><table>
       <thead><tr><th>Lot</th><th>Winner</th><th style="text-align:right">Hammer</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table></div>`);
+    </table></div>`;
 }
 
 function renderAdmin(s) {
   wireAdminControls(s);
+  wireAdminLotForm(s);
   const sg = document.getElementById('statgrid');
   if (sg) {
     const online = Object.values(s.participants).filter(p => isOnline(p) && p.role === 'bidder').length;
-    const total = s.bids.length;
+    const totalLots = s.lots ? s.lots.length : 0;
+    const totalBids = s.bids.length;
     sg.innerHTML = `
-      <div class="stat"><div class="sl">Now Selling</div><div class="sv sm">${s.lot ? esc(s.lot.title) : (s.status === 'closed' ? '— closed —' : '— standby —')}</div></div>
-      <div class="stat"><div class="sl">Standing Bid</div><div class="sv">${s.status === 'open' ? fmt(s.value) : '—'}</div></div>
-      <div class="stat"><div class="sl">Held By</div><div class="sv sm">${s.leader ? esc(s.leader) : '—'}</div></div>
+      <div class="stat"><div class="sl">Status</div><div class="sv sm">${s.status === 'open' ? 'Live' : 'Closed'}</div></div>
+      <div class="stat"><div class="sl">Total Lots</div><div class="sv">${totalLots}</div></div>
       <div class="stat"><div class="sl">Bidders Online</div><div class="sv">${online}</div></div>
-      <div class="stat"><div class="sl">Total Bids</div><div class="sv">${total}</div></div>
+      <div class="stat"><div class="sl">Total Bids</div><div class="sv">${totalBids}</div></div>
       <div class="stat"><div class="sl">Lots Sold</div><div class="sv">${s.history.filter(h => h.winner).length}</div></div>`;
   }
   const slot = document.getElementById('reportSlot');
