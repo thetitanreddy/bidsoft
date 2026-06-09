@@ -690,32 +690,51 @@ function renderAdmin(s) {
   if (ws) {
     if (s.status === 'closed') {
       if (s.realWinner) {
-        ws.innerHTML = `<div class="panel" style="border: 1px solid var(--gold); background: var(--panel-2);">
-          <h3 style="color:var(--gold-bright); margin-top:0;">Real Winner Announced!</h3>
-          <p style="font-size:18px;"><strong>${esc(s.realWinner.name)}</strong> won 🪙 ${Math.round(s.realWinner.prize)} coins.</p>
-          <p style="color:var(--muted); font-style:italic;">"${esc(s.realWinner.explanation)}"</p>
-        </div>`;
+        if (ws._sig !== 'winner') {
+          ws.innerHTML = `<div class="panel" style="border: 1px solid var(--gold); background: var(--panel-2);">
+            <h3 style="color:var(--gold-bright); margin-top:0;">Real Winner Announced!</h3>
+            <p style="font-size:18px;"><strong>${esc(s.realWinner.name)}</strong> won 🪙 ${Math.round(s.realWinner.prize)} coins.</p>
+            <p style="color:var(--muted); font-style:italic;">"${esc(s.realWinner.explanation)}"</p>
+          </div>`;
+          ws._sig = 'winner';
+        }
       } else {
         const bidders = Object.values(s.participants).filter(p => p.role === 'bidder').map(p => p.name);
         const options = bidders.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
-        ws.innerHTML = `<div class="panel" style="border: 1px solid var(--crimson-bright); background: rgba(220,53,69,0.05);">
-          <h3 style="margin-top:0; color:var(--cream);">Announce the Real Winner</h3>
-          <p style="font-size:14px; color:var(--muted);">Select the real winner for this session. They will receive 90% of the total bid pool (🪙 ${Math.round(s.totalPool || 0)}), and the admin receives 10%.</p>
-          <div class="field" style="margin-top:10px;"><label>Select Bidder</label><select id="winnerSelect" style="width:100%; padding:10px; background:var(--ink); color:var(--cream); border:1px solid var(--line); border-radius:6px;">${options}</select></div>
-          <div class="field" style="margin-top:10px;"><label>Explanation</label><textarea id="winnerExplanation" placeholder="Why did they win?" style="width:100%; padding:10px; background:var(--ink); color:var(--cream); border:1px solid var(--line); border-radius:6px; resize:vertical; min-height:60px;"></textarea></div>
-          <button class="btn" id="announceWinnerBtn" style="margin-top:10px;">Announce Winner & Distribute Pool</button>
-        </div>`;
-        const btn = document.getElementById('announceWinnerBtn');
-        if (btn) btn.onclick = async () => {
-          const wName = document.getElementById('winnerSelect').value;
-          const expl = document.getElementById('winnerExplanation').value;
-          if (!wName) return toast('Select a winner.');
-          if (!expl) return toast('Provide an explanation.');
-          await announceRealWinner(wName, expl);
-        };
+        
+        if (ws._sig !== 'form') {
+          ws.innerHTML = `<div class="panel" style="border: 1px solid var(--crimson-bright); background: rgba(220,53,69,0.05);">
+            <h3 style="margin-top:0; color:var(--cream);">Announce the Real Winner</h3>
+            <p style="font-size:14px; color:var(--muted);">Select the real winner for this session. They will receive 90% of the total bid pool (🪙 ${Math.round(s.totalPool || 0)}), and the admin receives 10%.</p>
+            <div class="field" style="margin-top:10px;"><label>Select Bidder</label><select id="winnerSelect" style="width:100%; padding:10px; background:var(--ink); color:var(--cream); border:1px solid var(--line); border-radius:6px;">${options}</select></div>
+            <div class="field" style="margin-top:10px;"><label>Explanation</label><textarea id="winnerExplanation" placeholder="Why did they win?" style="width:100%; padding:10px; background:var(--ink); color:var(--cream); border:1px solid var(--line); border-radius:6px; resize:vertical; min-height:60px;"></textarea></div>
+            <button class="btn" id="announceWinnerBtn" style="margin-top:10px;">Announce Winner & Distribute Pool</button>
+          </div>`;
+          ws._sig = 'form';
+          
+          const btn = document.getElementById('announceWinnerBtn');
+          if (btn) btn.onclick = async () => {
+            const wName = document.getElementById('winnerSelect').value;
+            const expl = document.getElementById('winnerExplanation').value;
+            if (!wName) return toast('Select a winner.');
+            if (!expl) return toast('Provide an explanation.');
+            await announceRealWinner(wName, expl);
+          };
+        } else {
+          // If already rendered, just softly update options if the bidder list length changed
+          const sel = document.getElementById('winnerSelect');
+          if (sel && sel.options.length !== bidders.length) {
+            const currentVal = sel.value;
+            sel.innerHTML = options;
+            if (currentVal) sel.value = currentVal;
+          }
+        }
       }
     } else {
-      ws.innerHTML = '';
+      if (ws._sig !== 'empty') {
+        ws.innerHTML = '';
+        ws._sig = 'empty';
+      }
     }
   }
   
