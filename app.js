@@ -351,9 +351,20 @@ async function placeBid(lotId, amount) {
       reject = 'insufficient'; return false;
     }
 
+    const prevLeader = lot.leader;
+    const prevValue = lot.value || 0;
+
+    // Deduct from current bidder
     s.participants[ME.name].wallet -= amount;
     s.participants[ME.name].lastSeen = now() + 2000;
-    s.totalPool = (s.totalPool || 0) + amount;
+
+    // Refund previous leader
+    if (prevLeader && s.participants[prevLeader]) {
+      s.participants[prevLeader].wallet = (s.participants[prevLeader].wallet || 0) + prevValue;
+      s.participants[prevLeader].lastSeen = now() + 2000;
+    }
+
+    s.totalPool = (s.totalPool || 0) - prevValue + amount;
 
     s.seq = (s.seq || 0) + 1;
     lot.value = amount; lot.leader = ME.name;
@@ -558,11 +569,20 @@ function topbar() {
     </div>`;
 }
 
+function updateTopbar(s) {
+  const wBadge = document.querySelector('.wallet-badge');
+  if (wBadge) {
+    const bal = s.participants && s.participants[ME.name] && s.participants[ME.name].wallet !== undefined ? s.participants[ME.name].wallet : (ME.role === 'auctioneer' ? 0 : 1000);
+    wBadge.textContent = '🪙 ' + Math.round(bal) + ' coins';
+  }
+}
+
 function renderFromState(s) {
   if (!s) { return; }
   if (ME.role === 'auctioneer' && skeletonRole !== 'auctioneer') mountAdmin();
   if (ME.role === 'bidder' && skeletonRole !== 'bidder') mountBidder();
 
+  updateTopbar(s);
   updateStatusPill(s);
   if (ME.role === 'bidder') renderBidder(s); else renderAdmin(s);
   renderRoster(s);
@@ -690,19 +710,18 @@ function renderAdmin(s) {
   if (ws) {
     if (s.status === 'closed') {
       if (s.realWinner) {
-        if (ws._sig !== 'winner') {
+        if (!ws.querySelector('h3') || ws.querySelector('h3').textContent !== 'Real Winner Announced!') {
           ws.innerHTML = `<div class="panel" style="border: 1px solid var(--gold); background: var(--panel-2);">
             <h3 style="color:var(--gold-bright); margin-top:0;">Real Winner Announced!</h3>
             <p style="font-size:18px;"><strong>${esc(s.realWinner.name)}</strong> won 🪙 ${Math.round(s.realWinner.prize)} coins.</p>
             <p style="color:var(--muted); font-style:italic;">"${esc(s.realWinner.explanation)}"</p>
           </div>`;
-          ws._sig = 'winner';
         }
       } else {
         const bidders = Object.values(s.participants).filter(p => p.role === 'bidder').map(p => p.name);
         const options = bidders.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
         
-        if (ws._sig !== 'form') {
+        if (!document.getElementById('winnerExplanation')) {
           ws.innerHTML = `<div class="panel" style="border: 1px solid var(--crimson-bright); background: rgba(220,53,69,0.05);">
             <h3 style="margin-top:0; color:var(--cream);">Announce the Real Winner</h3>
             <p style="font-size:14px; color:var(--muted);">Select the real winner for this session. They will receive 90% of the total bid pool (🪙 ${Math.round(s.totalPool || 0)}), and the admin receives 10%.</p>
@@ -710,7 +729,6 @@ function renderAdmin(s) {
             <div class="field" style="margin-top:10px;"><label>Explanation</label><textarea id="winnerExplanation" placeholder="Why did they win?" style="width:100%; padding:10px; background:var(--ink); color:var(--cream); border:1px solid var(--line); border-radius:6px; resize:vertical; min-height:60px;"></textarea></div>
             <button class="btn" id="announceWinnerBtn" style="margin-top:10px;">Announce Winner & Distribute Pool</button>
           </div>`;
-          ws._sig = 'form';
           
           const btn = document.getElementById('announceWinnerBtn');
           if (btn) btn.onclick = async () => {
@@ -731,9 +749,8 @@ function renderAdmin(s) {
         }
       }
     } else {
-      if (ws._sig !== 'empty') {
+      if (ws.innerHTML !== '') {
         ws.innerHTML = '';
-        ws._sig = 'empty';
       }
     }
   }
