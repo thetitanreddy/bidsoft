@@ -169,12 +169,17 @@ export function initApp(role) {
     
     if (auctionRef) {
         onValue(auctionRef, (snapshot) => {
-            if (dirty || writing) return; 
             const remote = snapshot.val();
             if (!remote) return;
             if ((remote.rev||0) <= localRev) return;
-            state = sanitizeState(remote); 
-            localRev = remote.rev||0;
+            
+            if (dirty || writing) {
+                state = mergeStates(sanitizeState(remote), state);
+            } else {
+                state = sanitizeState(remote); 
+            }
+            
+            localRev = Math.max(localRev, remote.rev||0);
             if (ME.name) {
                 renderFromState(state);
             }
