@@ -106,7 +106,7 @@ input{font-family:'Archivo',sans-serif}
 .brand .mk span{font-family:'Cormorant Garamond',serif;color:var(--gold-bright);font-size:18px;font-weight:700}
 .brand .bt{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;line-height:1}
 .brand .bs{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--muted)}
-.who{display:flex;align-items:center;gap:12px;font-size:13px}
+.who{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:12px;font-size:13px}
 .paddle{font-family:'JetBrains Mono',monospace;background:var(--ink-2);border:1px solid var(--line);
   padding:6px 10px;border-radius:4px;color:var(--gold-bright);font-weight:700}
 .badge{font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:4px 9px;border-radius:20px;border:1px solid var(--line);color:var(--cream-dim)}

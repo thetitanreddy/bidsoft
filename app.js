@@ -550,7 +550,7 @@ function topbar() {
       </div>
       <div class="who">
         <span class="status-pill" id="statusPill"><span class="dot"></span><span id="statusTxt">—</span></span>
-        <span class="wallet-badge" style="margin-right:15px; padding:4px 8px; background:var(--ink-2); border-radius:4px; font-family:monospace; color:var(--gold);">🪙 ${Math.round(walletBalance)} coins</span>
+        <span class="wallet-badge" style="padding:4px 8px; background:var(--ink-2); border-radius:4px; font-family:monospace; color:var(--gold);">🪙 ${Math.round(walletBalance)} coins</span>
         <span class="paddle">No. ${paddleFor(ME.name)}</span>
         <span>${esc(ME.name)}</span>
         <span class="badge ${adm ? 'adm' : ''}">${adm ? 'Auctioneer' : 'Bidder'}</span>
