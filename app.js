@@ -351,6 +351,7 @@ function mountAdmin() {
        <div class="field"><label>Description</label><input id="newLotBlurb" type="text" placeholder="Short description"></div>
        <button class="btn" id="addLotBtn">Add Product</button>
     </div>
+    <div id="adminLotList" class="panel" style="margin-bottom:20px; display:none;"></div>
     <div class="statgrid" id="statgrid"></div>
     <div id="reportSlot"></div>
     <div class="grid2">
@@ -390,6 +391,21 @@ function wireAdminLotForm(s) {
       toast('Product added.');
     };
   }
+
+  const listEl = document.getElementById('adminLotList');
+  if (listEl) {
+    listEl.style.display = s.status === 'open' ? 'none' : 'block';
+    if (!s.lots || s.lots.length === 0) {
+      listEl.innerHTML = '<div class="empty">No products added yet.</div>';
+    } else {
+      listEl.innerHTML = '<h3>Added Products (' + s.lots.length + ')</h3><div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">' + 
+        s.lots.map(lot => `<div style="display:flex; align-items:center; gap:15px; background:var(--ink-2); padding:10px; border:1px solid var(--line); border-radius:6px;">
+          ${lot.photoUrl ? `<div style="width:50px; height:50px; background-image:url('${esc(lot.photoUrl)}'); background-size:cover; border-radius:4px;"></div>` : ''}
+          <div><div style="font-weight:bold; color:var(--cream);">${esc(lot.title)}</div><div style="font-size:12px; color:var(--muted);">${esc(lot.blurb)}</div></div>
+        </div>`).join('') + 
+        '</div>';
+    }
+  }
 }
 
 function wireAdminControls(state) {
@@ -403,7 +419,8 @@ function wireAdminControls(state) {
     } else {
       row.innerHTML = `
         <button class="btn" id="openBtn">▶ Open the Sale</button>
-        <button class="btn ghost" id="resetBtn">Reset everything</button>`;
+        <button class="btn ghost" id="resetBtn">Reset everything</button>
+        <button class="btn ghost" id="clearBidsBtn" style="margin-left:10px;">Clear Ledger & Bids</button>`;
     }
     row._sig = sig;
 
@@ -413,6 +430,8 @@ function wireAdminControls(state) {
     if (ob) ob.onclick = openSession;
     const rb = document.getElementById('resetBtn');
     if (rb) rb.onclick = resetSession;
+    const cl = document.getElementById(\'clearBidsBtn\');
+    if (cl) cl.onclick = clearBidsSession;
   }
 }
 
@@ -448,6 +467,15 @@ async function resetSession() {
   await mutate(() => emptyState());
   await mutate(s => { s.participants[ME.name] = { name: ME.name, role: ME.role, lastSeen: now(), joinedAt: now() }; return s; });
   toast('Session reset.');
+}
+async function clearBidsSession() {
+  await mutate(s => {
+    s.bids = [];
+    s.history = [];
+    if (s.lots) s.lots.forEach(l => { l.value = 0; l.leader = null; });
+    return s;
+  });
+  toast(\'Ledger and bids cleared.\');
 }
 
 function topbar() {
@@ -519,12 +547,25 @@ function renderBidder(s) {
         };
       });
     } else {
+      const winnersList = (s.history || []).filter(h => h.winner).map(h => `
+        <div style="background:var(--panel-2); border:1px solid var(--gold); border-radius:8px; padding:15px; margin-bottom:15px; box-shadow:0 10px 30px -10px rgba(205,163,90,0.3);">
+          <div style="color:var(--gold-bright); font-size:32px; font-weight:700; font-family:'Cormorant Garamond',serif;">${esc(h.winner)}</div>
+          <div style="color:var(--cream); font-size:16px;">won <i>${esc(h.lot)}</i> for ${fmt(h.value)}</div>
+        </div>
+      `).join('');
+      const noWinners = `<div style="color:var(--muted); font-size:18px;">No items were sold.</div>`;
+
       grid.innerHTML = `
-        <div class="stage" style="grid-column: 1 / -1">
+        <div class="stage" style="grid-column: 1 / -1; text-align:center;">
           <div class="lot-tag">${s.status === 'closed' && s.history.length ? 'SALE CONCLUDED' : 'STANDBY'}</div>
-          <div class="lot-title" style="font-style:normal;color:var(--cream-dim)">${s.history.length ? 'The gavel has fallen.' : 'The room awaits.'}</div>
-          <div class="lot-blurb">${s.history.length ? 'Thank you for bidding. The Auctioneer holds the final record.' : 'No active products to bid on.'}</div>
-          ${s.status === 'closed' && s.history.length ? '<div id="bidderResults"></div>' : ''}
+          <div class="lot-title" style="font-style:normal;color:var(--cream-dim)">${s.history.length ? 'The Final Records' : 'The room awaits.'}</div>
+          <div class="lot-blurb" style="margin: 0 auto 30px;">${s.history.length ? 'The auction has ended. Congratulations to the highest bidders!' : 'No active products to bid on.'}</div>
+          ${s.status === 'closed' && s.history.length ? `
+            <div style="max-width: 600px; margin: 0 auto;">
+              ${winnersList || noWinners}
+            </div>
+            <div id="bidderResults" style="margin-top: 40px; text-align:left;"></div>
+          ` : ''}
         </div>
       `;
       if (s.status === 'closed' && s.history.length) renderResultsForBidder(document.getElementById('bidderResults'), s);
