@@ -1,16 +1,35 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-/* ============================================================
-   THE PHANTOM AUCTION — multi-user live demo
-   Shared state syncs across everyone who opens this artifact.
-   ============================================================ */
-const SHARED = true;
-const KEY = 'phantom_auction_v1';
-const CCY = 'Φ';                 // phantom credits
-const ONLINE_MS = 24000;         // presence freshness window (wider = less flicker)
-const POLL_MS = 2500;            // how often we read shared state
+// ============================================================
+// FIREBASE CONFIGURATION
+// Add your Firebase Config here:
+// ============================================================
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+let appFirebase;
+let db;
+let auctionRef;
+try {
+  appFirebase = initializeApp(firebaseConfig);
+  db = getDatabase(appFirebase);
+  auctionRef = ref(db, 'auction_v1');
+} catch (e) {
+  console.warn("Firebase not properly configured yet. Please update app.js with your config.");
+}
+
+const CCY = 'Φ';
+const ONLINE_MS = 24000;
 const HEARTBEAT_MS = 9000;
-const MIN_WRITE_MS = 1600;       // minimum gap between persisted writes (rate-limit safe)
-const RATE_COOLDOWN_MS = 6000;   // back off this long after a rate-limit error
+const MIN_WRITE_MS = 1600;
 
 const LOTS = [
   ["The Last Echo of a Sunday Morning","Guaranteed never to have happened. Sold as heard."],
@@ -27,40 +46,37 @@ const LOTS = [
   ["The Shadow of a Round Number","Cast at noon. Slightly imaginary."]
 ];
 
-/* ---------- session-local identity ---------- */
-let ME = { name:null, role:null };   // role: 'bidder' | 'auctioneer'
+let ME = { name:null, role:null };
 let lastValue = -1;
-let pollTimer = null, beatTimer = null;
-let skeletonRole = null;             // which skeleton is currently mounted
+let beatTimer = null;
+let skeletonRole = null;
 
-/* ---------- storage helpers ---------- */
 function emptyState(){
   return { rev:0, status:'closed', lotIndex:-1, lot:null, value:0, leader:null,
            bids:[], participants:{}, history:[], startedAt:null, closedAt:null, seq:0 };
 }
+
+let state = emptyState();
+let localRev = 0;
+let dirty = false;
+let writing = false;
+let flushTimer = null;
+let nextWriteAt = 0;
+
+function now(){ return Date.now(); }
+
 async function loadState(){
-  try{ const r = await window.storage.get(KEY, SHARED); if(r&&r.value) return JSON.parse(r.value); }
-  catch(e){/* missing key */}
+  if (!auctionRef) return null;
+  try{ const snap = await get(auctionRef); if(snap.exists()) return snap.val(); }
+  catch(e){ console.error("Firebase get error", e); }
   return null;
 }
 async function saveState(s){
-  // returns 'ok' | 'rate' | 'err' so the flusher can back off correctly
-  try{ await window.storage.set(KEY, JSON.stringify(s), SHARED); return 'ok'; }
-  catch(e){ const m=String(e&&e.message||e); return /rate limit/i.test(m) ? 'rate' : 'err'; }
+  if (!auctionRef) return 'err';
+  try{ await set(auctionRef, s); return 'ok'; }
+  catch(e){ return 'err'; }
 }
 
-/* ----- batched writer: mutate the LOCAL mirror instantly, persist on a throttled flush -----
-   This keeps us under the storage rate limit: rapid bids between flushes collapse into a
-   single write, and a rate-limit response triggers a cooldown.                          */
-let state = emptyState();      // authoritative local mirror
-let localRev = 0;
-let dirty = false;             // unpersisted local changes pending
-let writing = false;
-let flushTimer = null;
-let nextWriteAt = 0;           // earliest time we're allowed to write again
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-// fn mutates the local mirror; return `false` to abort with no change.
 async function mutate(fn){
   const res = fn(state);
   if(res===false) return state;
@@ -77,7 +93,6 @@ function scheduleFlush(){
   flushTimer = setTimeout(async()=>{ flushTimer=null; await flush(); }, wait);
 }
 
-// Merge another snapshot into ours so concurrent browsers don't erase each other's bids.
 function mergeStates(remote, local){
   if(!remote) return local;
   const map=new Map(); const k=b=>b.user+'|'+b.ts+'|'+b.amount;
@@ -97,30 +112,51 @@ function mergeStates(remote, local){
 
 async function flush(){
   if(writing || !dirty) return;
-  writing=true; dirty=false;                 // capture; further edits will re-arm dirty
+  writing=true; dirty=false;
   try{
     const remote=await loadState();
     const merged=mergeStates(remote, state);
     merged.rev=Math.max(remote?.rev||0, state.rev||0)+1;
     const r=await saveState(merged);
     if(r==='ok'){ state=merged; localRev=merged.rev; nextWriteAt=now()+MIN_WRITE_MS; renderFromState(state); }
-    else { dirty=true; nextWriteAt=now()+(r==='rate'?RATE_COOLDOWN_MS:1500); }  // keep changes, back off
+    else { dirty=true; nextWriteAt=now()+1500; }
   }catch(e){ dirty=true; nextWriteAt=now()+1500; }
   finally{ writing=false; if(dirty) scheduleFlush(); }
 }
 
-/* ---------- util ---------- */
 function fmt(n){ return CCY + ' ' + Math.round(n).toLocaleString('en-US'); }
 function paddleFor(name){ let h=0; for(const c of name) h=(h*31+c.charCodeAt(0))>>>0; return 100+(h%900); }
 function initials(name){ return name.trim().slice(0,2).toUpperCase(); }
-function now(){ return Date.now(); }
 function isOnline(p){ return p && (now()-p.lastSeen) < ONLINE_MS; }
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
 
-/* ============================================================
-   ENTRY / LOGIN
-   ============================================================ */
+export function initApp(role) {
+    ME.role = role;
+    renderEntry();
+    
+    if (auctionRef) {
+        onValue(auctionRef, (snapshot) => {
+            if (dirty || writing) return; 
+            const remote = snapshot.val();
+            if (!remote) return;
+            if ((remote.rev||0) <= localRev) return;
+            state = remote; localRev = remote.rev||0;
+            renderFromState(state);
+        });
+    }
+
+    window.addEventListener('beforeunload', ()=>{
+        clearInterval(beatTimer);
+        if(flushTimer){ clearTimeout(flushTimer); flushTimer=null; }
+        if(ME.name && state){
+            if(state.participants[ME.name]) state.participants[ME.name].lastSeen=0;
+            state.rev=(state.rev||0)+1;
+            saveState(state);
+        }
+    });
+}
+
 function renderEntry(){
   skeletonRole = null;
   const app = document.getElementById('app');
@@ -135,34 +171,18 @@ function renderEntry(){
           <label>Your name</label>
           <input id="nameIn" maxlength="22" placeholder="e.g. Marguerite" autocomplete="off" />
         </div>
-        <div class="field">
-          <label>Enter as</label>
-          <div class="roles">
-            <div class="role-opt on" data-role="bidder">
-              <div class="rt">Bidder</div><div class="rd">Join the floor &amp; bid</div>
-            </div>
-            <div class="role-opt" data-role="auctioneer">
-              <div class="rt">Auctioneer</div><div class="rd">Run &amp; close the sale</div>
-            </div>
-          </div>
-        </div>
         <div class="err" id="err"></div>
         <button class="btn" id="enterBtn" style="width:100%">Enter the Room →</button>
-        <div class="foot-note">Open this same artifact in another tab, on a phone, or share it — everyone lands in the <b>same live session</b>. Session data is shared with all participants.</div>
       </div>
     </div>`;
 
-  let chosen = 'bidder';
-  app.querySelectorAll('.role-opt').forEach(el=>{
-    el.onclick=()=>{ app.querySelectorAll('.role-opt').forEach(x=>x.classList.remove('on'));
-      el.classList.add('on'); chosen=el.dataset.role; };
-  });
   const nameIn = document.getElementById('nameIn');
   nameIn.focus();
   const go = async ()=>{
     const name = nameIn.value.trim();
     if(name.length<2){ document.getElementById('err').textContent='Please enter a name (2+ characters).'; return; }
-    ME.name=name; ME.role=chosen;
+    if(!auctionRef) { document.getElementById('err').textContent='Firebase not configured. Please add config to app.js.'; return; }
+    ME.name=name;
     await joinSession();
   };
   document.getElementById('enterBtn').onclick=go;
@@ -183,8 +203,7 @@ async function joinSession(){
 }
 
 function startLoops(){
-  clearInterval(pollTimer); clearInterval(beatTimer);
-  pollTimer = setInterval(tick, POLL_MS);
+  clearInterval(beatTimer);
   beatTimer = setInterval(heartbeat, HEARTBEAT_MS);
 }
 async function heartbeat(){
@@ -194,18 +213,7 @@ async function heartbeat(){
     return s;
   });
 }
-async function tick(){
-  if(dirty || writing) return;        // we have unpersisted local changes — don't clobber with remote
-  const remote = await loadState();
-  if(!remote) return;
-  if((remote.rev||0) <= localRev) return;   // not newer than what we have
-  state = remote; localRev = remote.rev||0;
-  renderFromState(state);
-}
 
-/* ============================================================
-   BIDDER VIEW
-   ============================================================ */
 function mountBidder(){
   skeletonRole='bidder';
   const app=document.getElementById('app');
@@ -231,7 +239,7 @@ function bidPanelMarkup(open){
   if(!open){
     return `<h3>No sale is live</h3>
       <div class="ph">Bidding opens when a sale is running. Start one now to begin (or wait for the Auctioneer).</div>
-      <button class="btn" id="startSale" style="width:100%;margin-bottom:10px">▶ Start the bidding</button>
+      <button class="btn" id="startSale" style="width:100%;margin-bottom:10px;display:none;">▶ Start the bidding</button>
       <div class="hint">A lot will be drawn and you can begin placing bids.</div>`;
   }
   return `
@@ -268,7 +276,7 @@ function wireBidPanel(snap){
     let reject=null;
     await mutate(s=>{
       if(s.status!=='open'){ reject='closed'; return false; }
-      if(amount<=s.value){ reject='low'; return false; }   // re-checked against latest local value
+      if(amount<=s.value){ reject='low'; return false; }
       s.seq=(s.seq||0)+1;
       s.value=amount; s.leader=ME.name;
       s.bids.push({ id:s.seq, user:ME.name, paddle:paddleFor(ME.name), amount,
@@ -279,7 +287,7 @@ function wireBidPanel(snap){
     if(reject==='closed'){ toast('The sale just closed.'); }
     else if(reject==='low'){ toast('Outbid — raise higher.'); }
     else { const ci=document.getElementById('customBid'); if(ci) ci.value='';
-      toast(`Bid placed — ${fmt(amount)}`); }
+      toast(\`Bid placed — \${fmt(amount)}\`); }
   };
 
   panel.querySelectorAll('.chip[data-add]').forEach(b=>{
@@ -293,9 +301,6 @@ function wireBidPanel(snap){
   if(customIn) customIn.addEventListener('keydown',e=>{ if(e.key==='Enter') place(customIn.value); });
 }
 
-/* ============================================================
-   AUCTIONEER (ADMIN) VIEW
-   ============================================================ */
 function mountAdmin(){
   skeletonRole='auctioneer';
   const app=document.getElementById('app');
@@ -388,14 +393,10 @@ async function closeSession(){
 }
 async function resetSession(){
   await mutate(()=>emptyState());
-  // re-add self
   await mutate(s=>{ s.participants[ME.name]={name:ME.name,role:ME.role,lastSeen:now(),joinedAt:now()}; return s; });
   toast('Session reset.');
 }
 
-/* ============================================================
-   SHARED RENDER
-   ============================================================ */
 function topbar(){
   const adm = ME.role==='auctioneer';
   return `
@@ -415,7 +416,6 @@ function topbar(){
 
 function renderFromState(s){
   if(!s){ return; }
-  // make sure correct skeleton is mounted
   if(ME.role==='auctioneer' && skeletonRole!=='auctioneer') mountAdmin();
   if(ME.role==='bidder' && skeletonRole!=='bidder') mountBidder();
 
@@ -497,7 +497,6 @@ function renderAdmin(s){
   if(sg){
     const online=Object.values(s.participants).filter(p=>isOnline(p)&&p.role==='bidder').length;
     const total=s.bids.length;
-    const highest=s.bids.reduce((m,b)=>Math.max(m,b.amount),0);
     sg.innerHTML = `
       <div class="stat"><div class="sl">Now Selling</div><div class="sv sm">${s.lot?esc(s.lot.title):(s.status==='closed'?'— closed —':'— standby —')}</div></div>
       <div class="stat"><div class="sl">Standing Bid</div><div class="sv">${s.status==='open'?fmt(s.value):'—'}</div></div>
@@ -610,7 +609,7 @@ function renderRoster(s){
   const onlineCount=people.filter(isOnline).length;
   if(count) count.textContent=onlineCount+' online';
   const sig = people.map(p=>p.name+(isOnline(p)?'1':'0')+p.role).join('|');
-  if(r._sig===sig) return;     // nothing changed → leave DOM alone (no flicker)
+  if(r._sig===sig) return;     
   r._sig=sig;
   r.innerHTML = people.map(p=>{
     const on=isOnline(p);
@@ -635,7 +634,7 @@ function renderFeed(s){
   if(count) count.textContent=s.bids.length+' bids';
   const lastId = s.bids.length? s.bids[s.bids.length-1].id : 0;
   const sig = s.bids.length+':'+lastId;
-  if(feed._sig===sig) return;   // no new bids → don't re-render (no flicker)
+  if(feed._sig===sig) return;   
   feed._sig=sig;
   const recent=[...s.bids].slice(-40).reverse();
   if(!recent.length){ feed.innerHTML='<div class="empty">No bids yet — be the first to raise.</div>'; return; }
@@ -651,15 +650,3 @@ function renderFeed(s){
       </div>
     </div>`).join('');
 }
-
-/* ---------- boot ---------- */
-renderEntry();
-window.addEventListener('beforeunload', ()=>{
-  clearInterval(pollTimer); clearInterval(beatTimer);
-  if(flushTimer){ clearTimeout(flushTimer); flushTimer=null; }
-  if(ME.name && state){
-    if(state.participants[ME.name]) state.participants[ME.name].lastSeen=0;
-    state.rev=(state.rev||0)+1;
-    saveState(state);   // single best-effort write
-  }
-});

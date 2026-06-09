@@ -1,370 +1,1083 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>The Phantom Auction · Live Session</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --ink:#0d0c0a;
-    --ink-2:#15130f;
-    --panel:#1b1813;
-    --panel-2:#221e18;
-    --line:#3a342a;
-    --cream:#f3ead8;
-    --cream-dim:#b8ac95;
-    --muted:#8c8169;
-    --gold:#cda35a;
-    --gold-bright:#e7c980;
-    --crimson:#a8413a;
-    --crimson-bright:#d65f54;
-    --green:#7fa05a;
-    --shadow:0 24px 60px -18px rgba(0,0,0,.75);
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{
-    background:
-      radial-gradient(120% 90% at 50% -10%, rgba(205,163,90,.10), transparent 55%),
-      radial-gradient(80% 60% at 90% 110%, rgba(168,65,58,.08), transparent 60%),
-      var(--ink);
-    color:var(--cream);
-    font-family:'Archivo',sans-serif;
-    min-height:100%;
-    -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
-  }
-  body::before{
-    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
-  }
-  .wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:32px 22px 80px}
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Phantom Auction · Live Session</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --ink: #0d0c0a;
+            --ink-2: #15130f;
+            --panel: #1b1813;
+            --panel-2: #221e18;
+            --line: #3a342a;
+            --cream: #f3ead8;
+            --cream-dim: #b8ac95;
+            --muted: #8c8169;
+            --gold: #cda35a;
+            --gold-bright: #e7c980;
+            --crimson: #a8413a;
+            --crimson-bright: #d65f54;
+            --green: #7fa05a;
+            --shadow: 0 24px 60px -18px rgba(0, 0, 0, .75);
+        }
 
-  /* ---------- shared bits ---------- */
-  .kicker{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);}
-  .serif{font-family:'Cormorant Garamond',serif;}
-  .mono{font-family:'JetBrains Mono',monospace;}
-  button{font-family:'Archivo',sans-serif;cursor:pointer;border:none;background:none;color:inherit}
-  input{font-family:'Archivo',sans-serif}
-  .btn{
-    background:linear-gradient(180deg,var(--gold-bright),var(--gold));
-    color:#241c0c;font-weight:700;letter-spacing:.04em;
-    padding:13px 22px;border-radius:3px;font-size:14px;
-    transition:transform .12s ease,box-shadow .2s ease,filter .2s ease;
-    box-shadow:0 8px 22px -10px rgba(205,163,90,.8);
-  }
-  .btn:hover{transform:translateY(-2px);filter:brightness(1.06)}
-  .btn:active{transform:translateY(0)}
-  .btn:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none;filter:grayscale(.4)}
-  .btn.ghost{
-    background:transparent;color:var(--cream);font-weight:600;
-    border:1px solid var(--line);box-shadow:none;
-  }
-  .btn.ghost:hover{border-color:var(--gold);color:var(--gold-bright)}
-  .btn.danger{background:linear-gradient(180deg,var(--crimson-bright),var(--crimson));color:#fff;box-shadow:0 8px 22px -10px rgba(168,65,58,.8)}
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
 
-  /* ---------- ENTRY ---------- */
-  .entry{min-height:88vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
-  .seal{
-    width:74px;height:74px;border-radius:50%;border:1.5px solid var(--gold);
-    display:grid;place-items:center;margin-bottom:26px;
-    box-shadow:inset 0 0 0 4px rgba(205,163,90,.12),0 0 40px -8px rgba(205,163,90,.4);
-    animation:spin 26s linear infinite;
-  }
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .seal span{font-family:'Cormorant Garamond',serif;font-size:34px;color:var(--gold-bright);font-weight:700}
-  .entry h1{
-    font-family:'Cormorant Garamond',serif;font-weight:600;
-    font-size:clamp(48px,9vw,92px);line-height:.92;letter-spacing:-.01em;
-    margin:10px 0 4px;
-  }
-  .entry h1 em{font-style:italic;color:var(--gold-bright)}
-  .entry .sub{color:var(--cream-dim);max-width:440px;margin:14px auto 38px;font-size:15px;line-height:1.6}
-  .card{
-    background:linear-gradient(180deg,var(--panel),var(--panel-2));
-    border:1px solid var(--line);border-radius:8px;padding:28px;
-    box-shadow:var(--shadow);width:100%;max-width:420px;text-align:left;
-  }
-  .field{margin-bottom:18px}
-  .field label{display:block;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-  .field input{
-    width:100%;background:var(--ink-2);border:1px solid var(--line);
-    color:var(--cream);padding:13px 14px;border-radius:4px;font-size:16px;outline:none;
-    transition:border-color .2s;
-  }
-  .field input:focus{border-color:var(--gold)}
-  .roles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
-  .role-opt{
-    border:1px solid var(--line);border-radius:5px;padding:14px 12px;text-align:center;
-    transition:all .18s;background:var(--ink-2);
-  }
-  .role-opt:hover{border-color:var(--gold)}
-  .role-opt.on{border-color:var(--gold);background:rgba(205,163,90,.1);box-shadow:inset 0 0 0 1px var(--gold)}
-  .role-opt .rt{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:600}
-  .role-opt .rd{font-size:11px;color:var(--muted);margin-top:2px}
-  .err{color:var(--crimson-bright);font-size:13px;margin-top:-8px;margin-bottom:12px;min-height:16px}
-  .foot-note{font-size:11px;color:var(--muted);margin-top:22px;line-height:1.5}
+        html,
+        body {
+            height: 100%
+        }
 
-  /* ---------- TOP BAR ---------- */
-  .topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;
-    border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:26px}
-  .topbar .brand{display:flex;align-items:center;gap:12px}
-  .brand .mk{width:38px;height:38px;border-radius:50%;border:1px solid var(--gold);display:grid;place-items:center}
-  .brand .mk span{font-family:'Cormorant Garamond',serif;color:var(--gold-bright);font-size:18px;font-weight:700}
-  .brand .bt{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;line-height:1}
-  .brand .bs{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--muted)}
-  .who{display:flex;align-items:center;gap:12px;font-size:13px}
-  .paddle{font-family:'JetBrains Mono',monospace;background:var(--ink-2);border:1px solid var(--line);
-    padding:6px 10px;border-radius:4px;color:var(--gold-bright);font-weight:700}
-  .badge{font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:4px 9px;border-radius:20px;border:1px solid var(--line);color:var(--cream-dim)}
-  .badge.adm{border-color:var(--crimson);color:var(--crimson-bright)}
+        body {
+            background:
+                radial-gradient(120% 90% at 50% -10%, rgba(205, 163, 90, .10), transparent 55%),
+                radial-gradient(80% 60% at 90% 110%, rgba(168, 65, 58, .08), transparent 60%),
+                var(--ink);
+            color: var(--cream);
+            font-family: 'Archivo', sans-serif;
+            min-height: 100%;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
 
-  .status-pill{display:inline-flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;
-    font-size:11px;letter-spacing:.18em;text-transform:uppercase;padding:6px 12px;border-radius:20px;border:1px solid var(--line)}
-  .status-pill .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
-  .status-pill.live{border-color:var(--green);color:var(--green)}
-  .status-pill.live .dot{background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 1.4s ease-in-out infinite}
-  .status-pill.closed{border-color:var(--crimson);color:var(--crimson-bright)}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
+        }
 
-  /* ---------- LOT STAGE ---------- */
-  .stage{
-    background:
-      radial-gradient(120% 140% at 50% -30%, rgba(205,163,90,.14), transparent 60%),
-      linear-gradient(180deg,var(--panel),var(--panel-2));
-    border:1px solid var(--line);border-radius:10px;padding:34px 30px;margin-bottom:20px;
-    box-shadow:var(--shadow);position:relative;overflow:hidden;
-  }
-  .stage::after{content:"";position:absolute;inset:0;border-radius:10px;pointer-events:none;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
-  .lot-tag{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.3em;color:var(--gold)}
-  .lot-title{font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:600;
-    font-size:clamp(30px,5.5vw,52px);line-height:1.04;margin:8px 0 12px;color:var(--cream)}
-  .lot-blurb{color:var(--cream-dim);max-width:560px;font-size:15px;line-height:1.6;font-style:italic;font-family:'Cormorant Garamond',serif;font-size:19px}
-  .bigrow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:30px;margin-top:26px;
-    border-top:1px solid var(--line);padding-top:22px}
-  .biglabel{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
-  .bigval{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:clamp(34px,7vw,58px);
-    color:var(--gold-bright);line-height:1;transition:color .2s}
-  .bigval.bump{animation:bump .45s ease}
-  @keyframes bump{0%{transform:scale(1)}30%{transform:scale(1.14);color:#fff}100%{transform:scale(1)}}
-  .leadname{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600}
-  .leadname.none{color:var(--muted);font-style:italic;font-size:20px}
+        .wrap {
+            position: relative;
+            z-index: 1;
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 32px 22px 80px
+        }
 
-  /* ---------- BID CONTROLS ---------- */
-  .panel{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);
-    border-radius:10px;padding:22px;box-shadow:var(--shadow)}
-  .panel h3{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:22px;margin-bottom:4px}
-  .panel .ph{color:var(--muted);font-size:12px;margin-bottom:16px}
-  .quickrow{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
-  .chip{background:var(--ink-2);border:1px solid var(--line);color:var(--cream);
-    padding:11px 16px;border-radius:30px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;
-    transition:all .15s}
-  .chip:hover{border-color:var(--gold);color:var(--gold-bright);transform:translateY(-1px)}
-  .chip.rng{border-color:var(--crimson);color:var(--crimson-bright)}
-  .chip.rng:hover{background:rgba(168,65,58,.14)}
-  .customrow{display:flex;gap:10px;margin-top:4px}
-  .customrow input{flex:1;background:var(--ink-2);border:1px solid var(--line);color:var(--cream);
-    padding:13px 14px;border-radius:4px;font-size:16px;font-family:'JetBrains Mono',monospace;outline:none}
-  .customrow input:focus{border-color:var(--gold)}
-  .grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:20px;align-items:start}
-  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+        /* ---------- shared bits ---------- */
+        .kicker {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: .32em;
+            text-transform: uppercase;
+            color: var(--gold);
+        }
 
-  /* ---------- FEED + ROSTER ---------- */
-  .sectitle{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.24em;
-    text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;justify-content:space-between}
-  .feed{max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
-  .feed::-webkit-scrollbar{width:6px}.feed::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
-  .bid{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 4px;
-    border-bottom:1px dashed rgba(58,52,42,.6);animation:slidein .35s ease}
-  @keyframes slidein{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
-  .bid .bn{display:flex;align-items:center;gap:9px;font-size:14px;min-width:0}
-  .bid .pp{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gold);border:1px solid var(--line);
-    padding:2px 6px;border-radius:3px;flex-shrink:0}
-  .bid .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bid .amt{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--gold-bright);flex-shrink:0}
-  .bid .lt{font-size:10px;color:var(--muted)}
-  .empty{color:var(--muted);font-style:italic;padding:20px 4px;font-family:'Cormorant Garamond',serif;font-size:18px}
+        .serif {
+            font-family: 'Cormorant Garamond', serif;
+        }
 
-  .roster{display:flex;flex-direction:column;gap:7px}
-  .person{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;
-    background:var(--ink-2);border:1px solid var(--line);border-radius:5px;font-size:13px}
-  .person .l{display:flex;align-items:center;gap:9px;min-width:0}
-  .person .av{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
-    font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;background:rgba(205,163,90,.16);color:var(--gold-bright);flex-shrink:0}
-  .person.you{border-color:var(--gold)}
-  .person .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
-  .adm-av{background:rgba(168,65,58,.2)!important;color:var(--crimson-bright)!important}
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
 
-  /* ---------- ADMIN ---------- */
-  .ctrlrow{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
-  .statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
-  .stat{background:var(--ink-2);border:1px solid var(--line);border-radius:8px;padding:16px}
-  .stat .sl{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
-  .stat .sv{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:var(--gold-bright);margin-top:6px}
-  .stat .sv.sm{font-size:18px;font-family:'Cormorant Garamond',serif;font-weight:600;color:var(--cream)}
+        button {
+            font-family: 'Archivo', sans-serif;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: inherit
+        }
 
-  /* ---------- REPORT ---------- */
-  .report{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--gold);
-    border-radius:10px;padding:30px;box-shadow:var(--shadow),0 0 50px -20px rgba(205,163,90,.5);margin-bottom:20px}
-  .report .rh{text-align:center;border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:22px}
-  .report .rh .stamp{display:inline-block;border:1px solid var(--crimson);color:var(--crimson-bright);
-    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.24em;padding:5px 14px;border-radius:3px;
-    transform:rotate(-3deg);margin-bottom:14px}
-  .report h2{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:38px;line-height:1}
-  .report .rsub{color:var(--cream-dim);font-size:13px;margin-top:6px}
-  .ledger-title{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;
-    color:var(--muted);margin:24px 0 10px}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
-    padding:8px 10px;border-bottom:1px solid var(--line)}
-  td{padding:9px 10px;border-bottom:1px dashed rgba(58,52,42,.5)}
-  td.num{font-family:'JetBrains Mono',monospace;color:var(--gold-bright);font-weight:600;text-align:right}
-  tr.win td{color:var(--gold-bright)}
-  .scrollx{overflow-x:auto}
+        input {
+            font-family: 'Archivo', sans-serif
+        }
 
-  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);
-    background:var(--crimson);color:#fff;padding:12px 20px;border-radius:6px;font-size:14px;font-weight:600;
-    opacity:0;transition:all .3s;z-index:50;box-shadow:var(--shadow)}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  .hint{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5;text-align:center}
-</style>
+        .btn {
+            background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+            color: #241c0c;
+            font-weight: 700;
+            letter-spacing: .04em;
+            padding: 13px 22px;
+            border-radius: 3px;
+            font-size: 14px;
+            transition: transform .12s ease, box-shadow .2s ease, filter .2s ease;
+            box-shadow: 0 8px 22px -10px rgba(205, 163, 90, .8);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.06)
+        }
+
+        .btn:active {
+            transform: translateY(0)
+        }
+
+        .btn:disabled {
+            opacity: .35;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            filter: grayscale(.4)
+        }
+
+        .btn.ghost {
+            background: transparent;
+            color: var(--cream);
+            font-weight: 600;
+            border: 1px solid var(--line);
+            box-shadow: none;
+        }
+
+        .btn.ghost:hover {
+            border-color: var(--gold);
+            color: var(--gold-bright)
+        }
+
+        .btn.danger {
+            background: linear-gradient(180deg, var(--crimson-bright), var(--crimson));
+            color: #fff;
+            box-shadow: 0 8px 22px -10px rgba(168, 65, 58, .8)
+        }
+
+        /* ---------- ENTRY ---------- */
+        .entry {
+            min-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center
+        }
+
+        .seal {
+            width: 74px;
+            height: 74px;
+            border-radius: 50%;
+            border: 1.5px solid var(--gold);
+            display: grid;
+            place-items: center;
+            margin-bottom: 26px;
+            box-shadow: inset 0 0 0 4px rgba(205, 163, 90, .12), 0 0 40px -8px rgba(205, 163, 90, .4);
+            animation: spin 26s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .seal span {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 34px;
+            color: var(--gold-bright);
+            font-weight: 700
+        }
+
+        .entry h1 {
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 600;
+            font-size: clamp(48px, 9vw, 92px);
+            line-height: .92;
+            letter-spacing: -.01em;
+            margin: 10px 0 4px;
+        }
+
+        .entry h1 em {
+            font-style: italic;
+            color: var(--gold-bright)
+        }
+
+        .entry .sub {
+            color: var(--cream-dim);
+            max-width: 440px;
+            margin: 14px auto 38px;
+            font-size: 15px;
+            line-height: 1.6
+        }
+
+        .card {
+            background: linear-gradient(180deg, var(--panel), var(--panel-2));
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 28px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 420px;
+            text-align: left;
+        }
+
+        .field {
+            margin-bottom: 18px
+        }
+
+        .field label {
+            display: block;
+            font-size: 12px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px
+        }
+
+        .field input {
+            width: 100%;
+            background: var(--ink-2);
+            border: 1px solid var(--line);
+            color: var(--cream);
+            padding: 13px 14px;
+            border-radius: 4px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color .2s;
+        }
+
+        .field input:focus {
+            border-color: var(--gold)
+        }
+
+        .roles {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 6px
+        }
+
+        .role-opt {
+            border: 1px solid var(--line);
+            border-radius: 5px;
+            padding: 14px 12px;
+            text-align: center;
+            transition: all .18s;
+            background: var(--ink-2);
+        }
+
+        .role-opt:hover {
+            border-color: var(--gold)
+        }
+
+        .role-opt.on {
+            border-color: var(--gold);
+            background: rgba(205, 163, 90, .1);
+            box-shadow: inset 0 0 0 1px var(--gold)
+        }
+
+        .role-opt .rt {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 21px;
+            font-weight: 600
+        }
+
+        .role-opt .rd {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px
+        }
+
+        .err {
+            color: var(--crimson-bright);
+            font-size: 13px;
+            margin-top: -8px;
+            margin-bottom: 12px;
+            min-height: 16px
+        }
+
+        .foot-note {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 22px;
+            line-height: 1.5
+        }
+
+        /* ---------- TOP BAR ---------- */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 14px;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 18px;
+            margin-bottom: 26px
+        }
+
+        .topbar .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px
+        }
+
+        .brand .mk {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 1px solid var(--gold);
+            display: grid;
+            place-items: center
+        }
+
+        .brand .mk span {
+            font-family: 'Cormorant Garamond', serif;
+            color: var(--gold-bright);
+            font-size: 18px;
+            font-weight: 700
+        }
+
+        .brand .bt {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 24px;
+            font-weight: 600;
+            line-height: 1
+        }
+
+        .brand .bs {
+            font-size: 10px;
+            letter-spacing: .28em;
+            text-transform: uppercase;
+            color: var(--muted)
+        }
+
+        .who {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px
+        }
+
+        .paddle {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--ink-2);
+            border: 1px solid var(--line);
+            padding: 6px 10px;
+            border-radius: 4px;
+            color: var(--gold-bright);
+            font-weight: 700
+        }
+
+        .badge {
+            font-size: 10px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            padding: 4px 9px;
+            border-radius: 20px;
+            border: 1px solid var(--line);
+            color: var(--cream-dim)
+        }
+
+        .badge.adm {
+            border-color: var(--crimson);
+            color: var(--crimson-bright)
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--line)
+        }
+
+        .status-pill .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--muted)
+        }
+
+        .status-pill.live {
+            border-color: var(--green);
+            color: var(--green)
+        }
+
+        .status-pill.live .dot {
+            background: var(--green);
+            box-shadow: 0 0 10px var(--green);
+            animation: pulse 1.4s ease-in-out infinite
+        }
+
+        .status-pill.closed {
+            border-color: var(--crimson);
+            color: var(--crimson-bright)
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .3
+            }
+        }
+
+        /* ---------- LOT STAGE ---------- */
+        .stage {
+            background:
+                radial-gradient(120% 140% at 50% -30%, rgba(205, 163, 90, .14), transparent 60%),
+                linear-gradient(180deg, var(--panel), var(--panel-2));
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 34px 30px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stage::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 10px;
+            pointer-events: none;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06)
+        }
+
+        .lot-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: .3em;
+            color: var(--gold)
+        }
+
+        .lot-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+            font-weight: 600;
+            font-size: clamp(30px, 5.5vw, 52px);
+            line-height: 1.04;
+            margin: 8px 0 12px;
+            color: var(--cream)
+        }
+
+        .lot-blurb {
+            color: var(--cream-dim);
+            max-width: 560px;
+            font-size: 15px;
+            line-height: 1.6;
+            font-style: italic;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 19px
+        }
+
+        .bigrow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 30px;
+            margin-top: 26px;
+            border-top: 1px solid var(--line);
+            padding-top: 22px
+        }
+
+        .biglabel {
+            font-size: 11px;
+            letter-spacing: .2em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 4px
+        }
+
+        .bigval {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: clamp(34px, 7vw, 58px);
+            color: var(--gold-bright);
+            line-height: 1;
+            transition: color .2s
+        }
+
+        .bigval.bump {
+            animation: bump .45s ease
+        }
+
+        @keyframes bump {
+            0% {
+                transform: scale(1)
+            }
+
+            30% {
+                transform: scale(1.14);
+                color: #fff
+            }
+
+            100% {
+                transform: scale(1)
+            }
+        }
+
+        .leadname {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 26px;
+            font-weight: 600
+        }
+
+        .leadname.none {
+            color: var(--muted);
+            font-style: italic;
+            font-size: 20px
+        }
+
+        /* ---------- BID CONTROLS ---------- */
+        .panel {
+            background: linear-gradient(180deg, var(--panel), var(--panel-2));
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 22px;
+            box-shadow: var(--shadow)
+        }
+
+        .panel h3 {
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 600;
+            font-size: 22px;
+            margin-bottom: 4px
+        }
+
+        .panel .ph {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 16px
+        }
+
+        .quickrow {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px
+        }
+
+        .chip {
+            background: var(--ink-2);
+            border: 1px solid var(--line);
+            color: var(--cream);
+            padding: 11px 16px;
+            border-radius: 30px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all .15s
+        }
+
+        .chip:hover {
+            border-color: var(--gold);
+            color: var(--gold-bright);
+            transform: translateY(-1px)
+        }
+
+        .chip.rng {
+            border-color: var(--crimson);
+            color: var(--crimson-bright)
+        }
+
+        .chip.rng:hover {
+            background: rgba(168, 65, 58, .14)
+        }
+
+        .customrow {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px
+        }
+
+        .customrow input {
+            flex: 1;
+            background: var(--ink-2);
+            border: 1px solid var(--line);
+            color: var(--cream);
+            padding: 13px 14px;
+            border-radius: 4px;
+            font-size: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            outline: none
+        }
+
+        .customrow input:focus {
+            border-color: var(--gold)
+        }
+
+        .grid2 {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 20px;
+            align-items: start
+        }
+
+        @media(max-width:760px) {
+            .grid2 {
+                grid-template-columns: 1fr
+            }
+        }
+
+        /* ---------- FEED + ROSTER ---------- */
+        .sectitle {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: .24em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between
+        }
+
+        .feed {
+            max-height: 280px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 2px
+        }
+
+        .feed::-webkit-scrollbar {
+            width: 6px
+        }
+
+        .feed::-webkit-scrollbar-thumb {
+            background: var(--line);
+            border-radius: 3px
+        }
+
+        .bid {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 9px 4px;
+            border-bottom: 1px dashed rgba(58, 52, 42, .6);
+            animation: slidein .35s ease
+        }
+
+        @keyframes slidein {
+            from {
+                opacity: 0;
+                transform: translateX(-8px)
+            }
+
+            to {
+                opacity: 1;
+                transform: none
+            }
+        }
+
+        .bid .bn {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 14px;
+            min-width: 0
+        }
+
+        .bid .pp {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--gold);
+            border: 1px solid var(--line);
+            padding: 2px 6px;
+            border-radius: 3px;
+            flex-shrink: 0
+        }
+
+        .bid .nm {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .bid .amt {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--gold-bright);
+            flex-shrink: 0
+        }
+
+        .bid .lt {
+            font-size: 10px;
+            color: var(--muted)
+        }
+
+        .empty {
+            color: var(--muted);
+            font-style: italic;
+            padding: 20px 4px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 18px
+        }
+
+        .roster {
+            display: flex;
+            flex-direction: column;
+            gap: 7px
+        }
+
+        .person {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 9px 11px;
+            background: var(--ink-2);
+            border: 1px solid var(--line);
+            border-radius: 5px;
+            font-size: 13px
+        }
+
+        .person .l {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0
+        }
+
+        .person .av {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(205, 163, 90, .16);
+            color: var(--gold-bright);
+            flex-shrink: 0
+        }
+
+        .person.you {
+            border-color: var(--gold)
+        }
+
+        .person .nm {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green)
+        }
+
+        .adm-av {
+            background: rgba(168, 65, 58, .2) !important;
+            color: var(--crimson-bright) !important
+        }
+
+        /* ---------- ADMIN ---------- */
+        .ctrlrow {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px
+        }
+
+        .statgrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px
+        }
+
+        .stat {
+            background: var(--ink-2);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 16px
+        }
+
+        .stat .sl {
+            font-size: 10px;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            color: var(--muted)
+        }
+
+        .stat .sv {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gold-bright);
+            margin-top: 6px
+        }
+
+        .stat .sv.sm {
+            font-size: 18px;
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 600;
+            color: var(--cream)
+        }
+
+        /* ---------- REPORT ---------- */
+        .report {
+            background: linear-gradient(180deg, var(--panel), var(--panel-2));
+            border: 1px solid var(--gold);
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: var(--shadow), 0 0 50px -20px rgba(205, 163, 90, .5);
+            margin-bottom: 20px
+        }
+
+        .report .rh {
+            text-align: center;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 18px;
+            margin-bottom: 22px
+        }
+
+        .report .rh .stamp {
+            display: inline-block;
+            border: 1px solid var(--crimson);
+            color: var(--crimson-bright);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: .24em;
+            padding: 5px 14px;
+            border-radius: 3px;
+            transform: rotate(-3deg);
+            margin-bottom: 14px
+        }
+
+        .report h2 {
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 600;
+            font-size: 38px;
+            line-height: 1
+        }
+
+        .report .rsub {
+            color: var(--cream-dim);
+            font-size: 13px;
+            margin-top: 6px
+        }
+
+        .ledger-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: .22em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin: 24px 0 10px
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px
+        }
+
+        th {
+            text-align: left;
+            font-size: 10px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--muted);
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--line)
+        }
+
+        td {
+            padding: 9px 10px;
+            border-bottom: 1px dashed rgba(58, 52, 42, .5)
+        }
+
+        td.num {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--gold-bright);
+            font-weight: 600;
+            text-align: right
+        }
+
+        tr.win td {
+            color: var(--gold-bright)
+        }
+
+        .scrollx {
+            overflow-x: auto
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 26px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--crimson);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0;
+            transition: all .3s;
+            z-index: 50;
+            box-shadow: var(--shadow)
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0)
+        }
+
+        .hint {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 14px;
+            line-height: 1.5;
+            text-align: center
+        }
+    </style>
 </head>
+
 <body>
-<div class="wrap" id="app"></div>
-<div class="toast" id="toast"></div>
+    <div class="wrap" id="app"></div>
+    <div class="toast" id="toast"></div>
 
-<script>
-/* ============================================================
-   THE PHANTOM AUCTION — multi-user live demo
-   Shared state syncs across everyone who opens this artifact.
-   ============================================================ */
-const SHARED = true;
-const KEY = 'phantom_auction_v1';
-const CCY = 'Φ';                 // phantom credits
-const ONLINE_MS = 24000;         // presence freshness window (wider = less flicker)
-const POLL_MS = 2500;            // how often we read shared state
-const HEARTBEAT_MS = 9000;
-const MIN_WRITE_MS = 1600;       // minimum gap between persisted writes (rate-limit safe)
-const RATE_COOLDOWN_MS = 6000;   // back off this long after a rate-limit error
+    <script>
+        /* ============================================================
+           THE PHANTOM AUCTION — multi-user live demo
+           Shared state syncs across everyone who opens this artifact.
+           ============================================================ */
+        const SHARED = true;
+        const KEY = 'phantom_auction_v1';
+        const CCY = 'Φ';                 // phantom credits
+        const ONLINE_MS = 24000;         // presence freshness window (wider = less flicker)
+        const POLL_MS = 2500;            // how often we read shared state
+        const HEARTBEAT_MS = 9000;
+        const MIN_WRITE_MS = 1600;       // minimum gap between persisted writes (rate-limit safe)
+        const RATE_COOLDOWN_MS = 6000;   // back off this long after a rate-limit error
 
-const LOTS = [
-  ["The Last Echo of a Sunday Morning","Guaranteed never to have happened. Sold as heard."],
-  ["One Carefully Folded Paradox","Opens into itself. Storage not recommended."],
-  ["A Pocketful of Next Tuesday","Slightly used. Still ahead of you."],
-  ["The Colour You See With Your Eyes Closed","Single edition. No two buyers agree on the shade."],
-  ["Half an Inch of the Horizon","Measured at dusk. Authenticity certificate forthcoming, eventually."],
-  ["The Pause Between Two Heartbeats","Acquired at great personal silence."],
-  ["A Rumour That Never Quite Happened","Untraceable. Highly collectible."],
-  ["The Smell of Rain Before It Falls","Bottled in advance. Do not inhale the future."],
-  ["An Idea You Left at the Door","Found, but no longer remembered by its owner."],
-  ["The Weight of an Empty Promise","Heavier than it looks. Comes with regret."],
-  ["A Single Unspoken Word","Never said aloud. The bidding speaks for it."],
-  ["The Shadow of a Round Number","Cast at noon. Slightly imaginary."]
-];
+        const LOTS = [
+            ["The Last Echo of a Sunday Morning", "Guaranteed never to have happened. Sold as heard."],
+            ["One Carefully Folded Paradox", "Opens into itself. Storage not recommended."],
+            ["A Pocketful of Next Tuesday", "Slightly used. Still ahead of you."],
+            ["The Colour You See With Your Eyes Closed", "Single edition. No two buyers agree on the shade."],
+            ["Half an Inch of the Horizon", "Measured at dusk. Authenticity certificate forthcoming, eventually."],
+            ["The Pause Between Two Heartbeats", "Acquired at great personal silence."],
+            ["A Rumour That Never Quite Happened", "Untraceable. Highly collectible."],
+            ["The Smell of Rain Before It Falls", "Bottled in advance. Do not inhale the future."],
+            ["An Idea You Left at the Door", "Found, but no longer remembered by its owner."],
+            ["The Weight of an Empty Promise", "Heavier than it looks. Comes with regret."],
+            ["A Single Unspoken Word", "Never said aloud. The bidding speaks for it."],
+            ["The Shadow of a Round Number", "Cast at noon. Slightly imaginary."]
+        ];
 
-/* ---------- session-local identity ---------- */
-let ME = { name:null, role:null };   // role: 'bidder' | 'auctioneer'
-let lastValue = -1;
-let pollTimer = null, beatTimer = null;
-let skeletonRole = null;             // which skeleton is currently mounted
+        /* ---------- session-local identity ---------- */
+        let ME = { name: null, role: null };   // role: 'bidder' | 'auctioneer'
+        let lastValue = -1;
+        let pollTimer = null, beatTimer = null;
+        let skeletonRole = null;             // which skeleton is currently mounted
 
-/* ---------- storage helpers ---------- */
-function emptyState(){
-  return { rev:0, status:'closed', lotIndex:-1, lot:null, value:0, leader:null,
-           bids:[], participants:{}, history:[], startedAt:null, closedAt:null, seq:0 };
-}
-async function loadState(){
-  try{ const r = await window.storage.get(KEY, SHARED); if(r&&r.value) return JSON.parse(r.value); }
-  catch(e){/* missing key */}
-  return null;
-}
-async function saveState(s){
-  // returns 'ok' | 'rate' | 'err' so the flusher can back off correctly
-  try{ await window.storage.set(KEY, JSON.stringify(s), SHARED); return 'ok'; }
-  catch(e){ const m=String(e&&e.message||e); return /rate limit/i.test(m) ? 'rate' : 'err'; }
-}
+        /* ---------- storage helpers ---------- */
+        function emptyState() {
+            return {
+                rev: 0, status: 'closed', lotIndex: -1, lot: null, value: 0, leader: null,
+                bids: [], participants: {}, history: [], startedAt: null, closedAt: null, seq: 0
+            };
+        }
+        async function loadState() {
+            try { const r = await window.storage.get(KEY, SHARED); if (r && r.value) return JSON.parse(r.value); }
+            catch (e) {/* missing key */ }
+            return null;
+        }
+        async function saveState(s) {
+            // returns 'ok' | 'rate' | 'err' so the flusher can back off correctly
+            try { await window.storage.set(KEY, JSON.stringify(s), SHARED); return 'ok'; }
+            catch (e) { const m = String(e && e.message || e); return /rate limit/i.test(m) ? 'rate' : 'err'; }
+        }
 
-/* ----- batched writer: mutate the LOCAL mirror instantly, persist on a throttled flush -----
-   This keeps us under the storage rate limit: rapid bids between flushes collapse into a
-   single write, and a rate-limit response triggers a cooldown.                          */
-let state = emptyState();      // authoritative local mirror
-let localRev = 0;
-let dirty = false;             // unpersisted local changes pending
-let writing = false;
-let flushTimer = null;
-let nextWriteAt = 0;           // earliest time we're allowed to write again
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+        /* ----- batched writer: mutate the LOCAL mirror instantly, persist on a throttled flush -----
+           This keeps us under the storage rate limit: rapid bids between flushes collapse into a
+           single write, and a rate-limit response triggers a cooldown.                          */
+        let state = emptyState();      // authoritative local mirror
+        let localRev = 0;
+        let dirty = false;             // unpersisted local changes pending
+        let writing = false;
+        let flushTimer = null;
+        let nextWriteAt = 0;           // earliest time we're allowed to write again
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// fn mutates the local mirror; return `false` to abort with no change.
-async function mutate(fn){
-  const res = fn(state);
-  if(res===false) return state;
-  if(res && typeof res==='object' && res!==state) state = res;
-  dirty = true;
-  renderFromState(state);
-  scheduleFlush();
-  return state;
-}
+        // fn mutates the local mirror; return `false` to abort with no change.
+        async function mutate(fn) {
+            const res = fn(state);
+            if (res === false) return state;
+            if (res && typeof res === 'object' && res !== state) state = res;
+            dirty = true;
+            renderFromState(state);
+            scheduleFlush();
+            return state;
+        }
 
-function scheduleFlush(){
-  if(flushTimer || !dirty) return;
-  const wait = Math.max(0, nextWriteAt - now());
-  flushTimer = setTimeout(async()=>{ flushTimer=null; await flush(); }, wait);
-}
+        function scheduleFlush() {
+            if (flushTimer || !dirty) return;
+            const wait = Math.max(0, nextWriteAt - now());
+            flushTimer = setTimeout(async () => { flushTimer = null; await flush(); }, wait);
+        }
 
-// Merge another snapshot into ours so concurrent browsers don't erase each other's bids.
-function mergeStates(remote, local){
-  if(!remote) return local;
-  const map=new Map(); const k=b=>b.user+'|'+b.ts+'|'+b.amount;
-  (remote.bids||[]).forEach(b=>map.set(k(b),b));
-  (local.bids||[]).forEach(b=>map.set(k(b),b));
-  let bids=[...map.values()].sort((a,b)=>a.ts-b.ts);
-  if(bids.length>300) bids=bids.slice(-300);
-  const participants={...(remote.participants||{})};
-  for(const [n,p] of Object.entries(local.participants||{}))
-    if(!participants[n] || (p.lastSeen||0)>(participants[n].lastSeen||0)) participants[n]=p;
-  const out={...local, bids, participants};
-  const cur=bids.filter(b=>b.lotIndex===out.lotIndex);
-  if(cur.length){ const top=cur.reduce((m,b)=>b.amount>m.amount?b:m,cur[0]);
-    if(top.amount>=(out.value||0)){ out.value=top.amount; out.leader=top.user; } }
-  return out;
-}
+        // Merge another snapshot into ours so concurrent browsers don't erase each other's bids.
+        function mergeStates(remote, local) {
+            if (!remote) return local;
+            const map = new Map(); const k = b => b.user + '|' + b.ts + '|' + b.amount;
+            (remote.bids || []).forEach(b => map.set(k(b), b));
+            (local.bids || []).forEach(b => map.set(k(b), b));
+            let bids = [...map.values()].sort((a, b) => a.ts - b.ts);
+            if (bids.length > 300) bids = bids.slice(-300);
+            const participants = { ...(remote.participants || {}) };
+            for (const [n, p] of Object.entries(local.participants || {}))
+                if (!participants[n] || (p.lastSeen || 0) > (participants[n].lastSeen || 0)) participants[n] = p;
+            const out = { ...local, bids, participants };
+            const cur = bids.filter(b => b.lotIndex === out.lotIndex);
+            if (cur.length) {
+                const top = cur.reduce((m, b) => b.amount > m.amount ? b : m, cur[0]);
+                if (top.amount >= (out.value || 0)) { out.value = top.amount; out.leader = top.user; }
+            }
+            return out;
+        }
 
-async function flush(){
-  if(writing || !dirty) return;
-  writing=true; dirty=false;                 // capture; further edits will re-arm dirty
-  try{
-    const remote=await loadState();
-    const merged=mergeStates(remote, state);
-    merged.rev=Math.max(remote?.rev||0, state.rev||0)+1;
-    const r=await saveState(merged);
-    if(r==='ok'){ state=merged; localRev=merged.rev; nextWriteAt=now()+MIN_WRITE_MS; renderFromState(state); }
-    else { dirty=true; nextWriteAt=now()+(r==='rate'?RATE_COOLDOWN_MS:1500); }  // keep changes, back off
-  }catch(e){ dirty=true; nextWriteAt=now()+1500; }
-  finally{ writing=false; if(dirty) scheduleFlush(); }
-}
+        async function flush() {
+            if (writing || !dirty) return;
+            writing = true; dirty = false;                 // capture; further edits will re-arm dirty
+            try {
+                const remote = await loadState();
+                const merged = mergeStates(remote, state);
+                merged.rev = Math.max(remote?.rev || 0, state.rev || 0) + 1;
+                const r = await saveState(merged);
+                if (r === 'ok') { state = merged; localRev = merged.rev; nextWriteAt = now() + MIN_WRITE_MS; renderFromState(state); }
+                else { dirty = true; nextWriteAt = now() + (r === 'rate' ? RATE_COOLDOWN_MS : 1500); }  // keep changes, back off
+            } catch (e) { dirty = true; nextWriteAt = now() + 1500; }
+            finally { writing = false; if (dirty) scheduleFlush(); }
+        }
 
-/* ---------- util ---------- */
-function fmt(n){ return CCY + ' ' + Math.round(n).toLocaleString('en-US'); }
-function paddleFor(name){ let h=0; for(const c of name) h=(h*31+c.charCodeAt(0))>>>0; return 100+(h%900); }
-function initials(name){ return name.trim().slice(0,2).toUpperCase(); }
-function now(){ return Date.now(); }
-function isOnline(p){ return p && (now()-p.lastSeen) < ONLINE_MS; }
-function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
+        /* ---------- util ---------- */
+        function fmt(n) { return CCY + ' ' + Math.round(n).toLocaleString('en-US'); }
+        function paddleFor(name) { let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0; return 100 + (h % 900); }
+        function initials(name) { return name.trim().slice(0, 2).toUpperCase(); }
+        function now() { return Date.now(); }
+        function isOnline(p) { return p && (now() - p.lastSeen) < ONLINE_MS; }
+        function esc(s) { return (s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+        function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2200); }
 
-/* ============================================================
-   ENTRY / LOGIN
-   ============================================================ */
-function renderEntry(){
-  skeletonRole = null;
-  const app = document.getElementById('app');
-  app.innerHTML = `
+        /* ============================================================
+           ENTRY / LOGIN
+           ============================================================ */
+        function renderEntry() {
+            skeletonRole = null;
+            const app = document.getElementById('app');
+            app.innerHTML = `
     <div class="entry">
       <div class="seal"><span>Φ</span></div>
       <div class="kicker">Lot &nbsp;·&nbsp; Bid &nbsp;·&nbsp; Vanish</div>
@@ -392,64 +1105,68 @@ function renderEntry(){
       </div>
     </div>`;
 
-  let chosen = 'bidder';
-  app.querySelectorAll('.role-opt').forEach(el=>{
-    el.onclick=()=>{ app.querySelectorAll('.role-opt').forEach(x=>x.classList.remove('on'));
-      el.classList.add('on'); chosen=el.dataset.role; };
-  });
-  const nameIn = document.getElementById('nameIn');
-  nameIn.focus();
-  const go = async ()=>{
-    const name = nameIn.value.trim();
-    if(name.length<2){ document.getElementById('err').textContent='Please enter a name (2+ characters).'; return; }
-    ME.name=name; ME.role=chosen;
-    await joinSession();
-  };
-  document.getElementById('enterBtn').onclick=go;
-  nameIn.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
-}
+            let chosen = 'bidder';
+            app.querySelectorAll('.role-opt').forEach(el => {
+                el.onclick = () => {
+                    app.querySelectorAll('.role-opt').forEach(x => x.classList.remove('on'));
+                    el.classList.add('on'); chosen = el.dataset.role;
+                };
+            });
+            const nameIn = document.getElementById('nameIn');
+            nameIn.focus();
+            const go = async () => {
+                const name = nameIn.value.trim();
+                if (name.length < 2) { document.getElementById('err').textContent = 'Please enter a name (2+ characters).'; return; }
+                ME.name = name; ME.role = chosen;
+                await joinSession();
+            };
+            document.getElementById('enterBtn').onclick = go;
+            nameIn.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+        }
 
-async function joinSession(){
-  state = (await loadState()) || emptyState();
-  localRev = state.rev||0;
-  await mutate(s=>{
-    s.participants[ME.name] = { name:ME.name, role:ME.role, lastSeen:now(),
-      joinedAt:(s.participants[ME.name]?.joinedAt)||now() };
-    return s;
-  });
-  startLoops();
-  if(ME.role==='auctioneer') mountAdmin(); else mountBidder();
-  renderFromState(state);
-}
+        async function joinSession() {
+            state = (await loadState()) || emptyState();
+            localRev = state.rev || 0;
+            await mutate(s => {
+                s.participants[ME.name] = {
+                    name: ME.name, role: ME.role, lastSeen: now(),
+                    joinedAt: (s.participants[ME.name]?.joinedAt) || now()
+                };
+                return s;
+            });
+            startLoops();
+            if (ME.role === 'auctioneer') mountAdmin(); else mountBidder();
+            renderFromState(state);
+        }
 
-function startLoops(){
-  clearInterval(pollTimer); clearInterval(beatTimer);
-  pollTimer = setInterval(tick, POLL_MS);
-  beatTimer = setInterval(heartbeat, HEARTBEAT_MS);
-}
-async function heartbeat(){
-  await mutate(s=>{
-    if(s.participants[ME.name]) s.participants[ME.name].lastSeen=now();
-    else s.participants[ME.name]={name:ME.name,role:ME.role,lastSeen:now(),joinedAt:now()};
-    return s;
-  });
-}
-async function tick(){
-  if(dirty || writing) return;        // we have unpersisted local changes — don't clobber with remote
-  const remote = await loadState();
-  if(!remote) return;
-  if((remote.rev||0) <= localRev) return;   // not newer than what we have
-  state = remote; localRev = remote.rev||0;
-  renderFromState(state);
-}
+        function startLoops() {
+            clearInterval(pollTimer); clearInterval(beatTimer);
+            pollTimer = setInterval(tick, POLL_MS);
+            beatTimer = setInterval(heartbeat, HEARTBEAT_MS);
+        }
+        async function heartbeat() {
+            await mutate(s => {
+                if (s.participants[ME.name]) s.participants[ME.name].lastSeen = now();
+                else s.participants[ME.name] = { name: ME.name, role: ME.role, lastSeen: now(), joinedAt: now() };
+                return s;
+            });
+        }
+        async function tick() {
+            if (dirty || writing) return;        // we have unpersisted local changes — don't clobber with remote
+            const remote = await loadState();
+            if (!remote) return;
+            if ((remote.rev || 0) <= localRev) return;   // not newer than what we have
+            state = remote; localRev = remote.rev || 0;
+            renderFromState(state);
+        }
 
-/* ============================================================
-   BIDDER VIEW
-   ============================================================ */
-function mountBidder(){
-  skeletonRole='bidder';
-  const app=document.getElementById('app');
-  app.innerHTML = `
+        /* ============================================================
+           BIDDER VIEW
+           ============================================================ */
+        function mountBidder() {
+            skeletonRole = 'bidder';
+            const app = document.getElementById('app');
+            app.innerHTML = `
     ${topbar()}
     <div class="stage" id="stage"></div>
     <div class="grid2">
@@ -465,16 +1182,16 @@ function mountBidder(){
         </div>
       </div>
     </div>`;
-}
+        }
 
-function bidPanelMarkup(open){
-  if(!open){
-    return `<h3>No sale is live</h3>
+        function bidPanelMarkup(open) {
+            if (!open) {
+                return `<h3>No sale is live</h3>
       <div class="ph">Bidding opens when a sale is running. Start one now to begin (or wait for the Auctioneer).</div>
       <button class="btn" id="startSale" style="width:100%;margin-bottom:10px">▶ Start the bidding</button>
       <div class="hint">A lot will be drawn and you can begin placing bids.</div>`;
-  }
-  return `
+            }
+            return `
     <h3>Raise the bid</h3>
     <div class="ph">You must exceed the current standing bid. Phantom credits only.</div>
     <div class="quickrow">
@@ -489,57 +1206,62 @@ function bidPanelMarkup(open){
       <button class="btn" id="placeBtn">Place Bid</button>
     </div>
     <div class="hint" id="bidHint"></div>`;
-}
+        }
 
-function wireBidPanel(snap){
-  const open = snap.status==='open';
-  const panel = document.getElementById('bidPanel');
-  if(!panel) return;
-  if(panel._open!==open){ panel.innerHTML=bidPanelMarkup(open); panel._open=open; }
-  if(!open){
-    const sb=document.getElementById('startSale');
-    if(sb) sb.onclick=async()=>{ await openSession(); toast('Sale opened — place your bid!'); };
-    return;
-  }
+        function wireBidPanel(snap) {
+            const open = snap.status === 'open';
+            const panel = document.getElementById('bidPanel');
+            if (!panel) return;
+            if (panel._open !== open) { panel.innerHTML = bidPanelMarkup(open); panel._open = open; }
+            if (!open) {
+                const sb = document.getElementById('startSale');
+                if (sb) sb.onclick = async () => { await openSession(); toast('Sale opened — place your bid!'); };
+                return;
+            }
 
-  const place = async (amount)=>{
-    amount = Math.round(Number(amount));
-    if(!amount || amount<=0){ toast('Enter a valid amount.'); return; }
-    let reject=null;
-    await mutate(s=>{
-      if(s.status!=='open'){ reject='closed'; return false; }
-      if(amount<=s.value){ reject='low'; return false; }   // re-checked against latest local value
-      s.seq=(s.seq||0)+1;
-      s.value=amount; s.leader=ME.name;
-      s.bids.push({ id:s.seq, user:ME.name, paddle:paddleFor(ME.name), amount,
-        lot:s.lot?.title||'—', lotIndex:s.lotIndex, ts:now() });
-      if(s.bids.length>300) s.bids=s.bids.slice(-300);
-      return s;
-    });
-    if(reject==='closed'){ toast('The sale just closed.'); }
-    else if(reject==='low'){ toast('Outbid — raise higher.'); }
-    else { const ci=document.getElementById('customBid'); if(ci) ci.value='';
-      toast(`Bid placed — ${fmt(amount)}`); }
-  };
+            const place = async (amount) => {
+                amount = Math.round(Number(amount));
+                if (!amount || amount <= 0) { toast('Enter a valid amount.'); return; }
+                let reject = null;
+                await mutate(s => {
+                    if (s.status !== 'open') { reject = 'closed'; return false; }
+                    if (amount <= s.value) { reject = 'low'; return false; }   // re-checked against latest local value
+                    s.seq = (s.seq || 0) + 1;
+                    s.value = amount; s.leader = ME.name;
+                    s.bids.push({
+                        id: s.seq, user: ME.name, paddle: paddleFor(ME.name), amount,
+                        lot: s.lot?.title || '—', lotIndex: s.lotIndex, ts: now()
+                    });
+                    if (s.bids.length > 300) s.bids = s.bids.slice(-300);
+                    return s;
+                });
+                if (reject === 'closed') { toast('The sale just closed.'); }
+                else if (reject === 'low') { toast('Outbid — raise higher.'); }
+                else {
+                    const ci = document.getElementById('customBid'); if (ci) ci.value = '';
+                    toast(`Bid placed — ${fmt(amount)}`);
+                }
+            };
 
-  panel.querySelectorAll('.chip[data-add]').forEach(b=>{
-    b.onclick=()=> place(state.value + Number(b.dataset.add)); });
-  const rng = panel.querySelector('.chip[data-rng]');
-  if(rng) rng.onclick=()=> place(state.value + 25 + Math.floor(Math.random()*975));
+            panel.querySelectorAll('.chip[data-add]').forEach(b => {
+                b.onclick = () => place(state.value + Number(b.dataset.add));
+            });
+            const rng = panel.querySelector('.chip[data-rng]');
+            if (rng) rng.onclick = () => place(state.value + 25 + Math.floor(Math.random() * 975));
 
-  const customBtn=document.getElementById('placeBtn');
-  const customIn=document.getElementById('customBid');
-  if(customBtn) customBtn.onclick=()=>place(customIn.value);
-  if(customIn) customIn.addEventListener('keydown',e=>{ if(e.key==='Enter') place(customIn.value); });
-}
+            const customBtn = document.getElementById('placeBtn');
+            const customIn = document.getElementById('customBid');
+            if (customBtn) customBtn.onclick = () => place(customIn.value);
+            if (customIn) customIn.addEventListener('keydown', e => { if (e.key === 'Enter') place(customIn.value); });
+        }
 
-/* ============================================================
-   AUCTIONEER (ADMIN) VIEW
-   ============================================================ */
-function mountAdmin(){
-  skeletonRole='auctioneer';
-  const app=document.getElementById('app');
-  app.innerHTML = `
+        /* ============================================================
+           AUCTIONEER (ADMIN) VIEW
+           ============================================================ */
+        function mountAdmin() {
+            skeletonRole = 'auctioneer';
+            const app = document.getElementById('app');
+            app.innerHTML = `
     ${topbar()}
     <div class="ctrlrow" id="ctrlrow"></div>
     <div class="statgrid" id="statgrid"></div>
@@ -554,91 +1276,93 @@ function mountAdmin(){
         <div class="roster" id="roster"></div>
       </div>
     </div>`;
-}
+        }
 
-function wireAdminControls(state){
-  const row=document.getElementById('ctrlrow');
-  if(!row) return;
-  const open = state.status==='open';
-  const sig = open ? 'open' : 'closed';
-  if(row._sig!==sig){
-    if(open){
-      row.innerHTML = `
+        function wireAdminControls(state) {
+            const row = document.getElementById('ctrlrow');
+            if (!row) return;
+            const open = state.status === 'open';
+            const sig = open ? 'open' : 'closed';
+            if (row._sig !== sig) {
+                if (open) {
+                    row.innerHTML = `
         <button class="btn" id="nextLot">⟳ Next Lot</button>
         <button class="btn danger" id="closeBtn">⚖ Drop the Gavel — Close Session</button>`;
-    } else {
-      row.innerHTML = `
+                } else {
+                    row.innerHTML = `
         <button class="btn" id="openBtn">▶ Open the Sale</button>
         <button class="btn ghost" id="resetBtn">Reset everything</button>`;
-    }
-    row._sig=sig;
+                }
+                row._sig = sig;
 
-    const nl=document.getElementById('nextLot');
-    if(nl) nl.onclick=advanceLot;
-    const cb=document.getElementById('closeBtn');
-    if(cb) cb.onclick=closeSession;
-    const ob=document.getElementById('openBtn');
-    if(ob) ob.onclick=openSession;
-    const rb=document.getElementById('resetBtn');
-    if(rb) rb.onclick=resetSession;
-  }
-}
+                const nl = document.getElementById('nextLot');
+                if (nl) nl.onclick = advanceLot;
+                const cb = document.getElementById('closeBtn');
+                if (cb) cb.onclick = closeSession;
+                const ob = document.getElementById('openBtn');
+                if (ob) ob.onclick = openSession;
+                const rb = document.getElementById('resetBtn');
+                if (rb) rb.onclick = resetSession;
+            }
+        }
 
-function pickLot(prevIndex){
-  let i; do{ i=Math.floor(Math.random()*LOTS.length); } while(LOTS.length>1 && i===prevIndex);
-  return { index:i, title:LOTS[i][0], blurb:LOTS[i][1] };
-}
-function finalizeLot(s){
-  if(s.lot && s.leader){
-    s.history.push({ lot:s.lot.title, winner:s.leader, value:s.value,
-      bidCount:s.bids.filter(b=>b.lotIndex===s.lotIndex).length, closedAt:now() });
-  } else if(s.lot){
-    s.history.push({ lot:s.lot.title, winner:null, value:0, bidCount:0, closedAt:now() });
-  }
-}
-async function openSession(){
-  await mutate(s=>{
-    const L=pickLot(-1);
-    s.status='open'; s.startedAt=now(); s.closedAt=null;
-    s.history=[]; s.bids=[]; s.value=0; s.leader=null;
-    s.lotIndex=L.index; s.lot={title:L.title,blurb:L.blurb};
-    return s;
-  });
-  toast('The sale is open.');
-}
-async function advanceLot(){
-  await mutate(s=>{
-    if(s.status!=='open') return s;
-    finalizeLot(s);
-    const L=pickLot(s.lotIndex);
-    s.lotIndex=L.index; s.lot={title:L.title,blurb:L.blurb};
-    s.value=0; s.leader=null;
-    return s;
-  });
-  toast('Next lot on the block.');
-}
-async function closeSession(){
-  await mutate(s=>{
-    if(s.status==='open') finalizeLot(s);
-    s.status='closed'; s.closedAt=now();
-    s.lot=null; s.value=0; s.leader=null; s.lotIndex=-1;
-    return s;
-  });
-  toast('Gavel dropped — session closed.');
-}
-async function resetSession(){
-  await mutate(()=>emptyState());
-  // re-add self
-  await mutate(s=>{ s.participants[ME.name]={name:ME.name,role:ME.role,lastSeen:now(),joinedAt:now()}; return s; });
-  toast('Session reset.');
-}
+        function pickLot(prevIndex) {
+            let i; do { i = Math.floor(Math.random() * LOTS.length); } while (LOTS.length > 1 && i === prevIndex);
+            return { index: i, title: LOTS[i][0], blurb: LOTS[i][1] };
+        }
+        function finalizeLot(s) {
+            if (s.lot && s.leader) {
+                s.history.push({
+                    lot: s.lot.title, winner: s.leader, value: s.value,
+                    bidCount: s.bids.filter(b => b.lotIndex === s.lotIndex).length, closedAt: now()
+                });
+            } else if (s.lot) {
+                s.history.push({ lot: s.lot.title, winner: null, value: 0, bidCount: 0, closedAt: now() });
+            }
+        }
+        async function openSession() {
+            await mutate(s => {
+                const L = pickLot(-1);
+                s.status = 'open'; s.startedAt = now(); s.closedAt = null;
+                s.history = []; s.bids = []; s.value = 0; s.leader = null;
+                s.lotIndex = L.index; s.lot = { title: L.title, blurb: L.blurb };
+                return s;
+            });
+            toast('The sale is open.');
+        }
+        async function advanceLot() {
+            await mutate(s => {
+                if (s.status !== 'open') return s;
+                finalizeLot(s);
+                const L = pickLot(s.lotIndex);
+                s.lotIndex = L.index; s.lot = { title: L.title, blurb: L.blurb };
+                s.value = 0; s.leader = null;
+                return s;
+            });
+            toast('Next lot on the block.');
+        }
+        async function closeSession() {
+            await mutate(s => {
+                if (s.status === 'open') finalizeLot(s);
+                s.status = 'closed'; s.closedAt = now();
+                s.lot = null; s.value = 0; s.leader = null; s.lotIndex = -1;
+                return s;
+            });
+            toast('Gavel dropped — session closed.');
+        }
+        async function resetSession() {
+            await mutate(() => emptyState());
+            // re-add self
+            await mutate(s => { s.participants[ME.name] = { name: ME.name, role: ME.role, lastSeen: now(), joinedAt: now() }; return s; });
+            toast('Session reset.');
+        }
 
-/* ============================================================
-   SHARED RENDER
-   ============================================================ */
-function topbar(){
-  const adm = ME.role==='auctioneer';
-  return `
+        /* ============================================================
+           SHARED RENDER
+           ============================================================ */
+        function topbar() {
+            const adm = ME.role === 'auctioneer';
+            return `
     <div class="topbar">
       <div class="brand">
         <div class="mk"><span>Φ</span></div>
@@ -648,129 +1372,129 @@ function topbar(){
         <span class="status-pill" id="statusPill"><span class="dot"></span><span id="statusTxt">—</span></span>
         <span class="paddle">No. ${paddleFor(ME.name)}</span>
         <span>${esc(ME.name)}</span>
-        <span class="badge ${adm?'adm':''}">${adm?'Auctioneer':'Bidder'}</span>
+        <span class="badge ${adm ? 'adm' : ''}">${adm ? 'Auctioneer' : 'Bidder'}</span>
       </div>
     </div>`;
-}
+        }
 
-function renderFromState(s){
-  if(!s){ return; }
-  // make sure correct skeleton is mounted
-  if(ME.role==='auctioneer' && skeletonRole!=='auctioneer') mountAdmin();
-  if(ME.role==='bidder' && skeletonRole!=='bidder') mountBidder();
+        function renderFromState(s) {
+            if (!s) { return; }
+            // make sure correct skeleton is mounted
+            if (ME.role === 'auctioneer' && skeletonRole !== 'auctioneer') mountAdmin();
+            if (ME.role === 'bidder' && skeletonRole !== 'bidder') mountBidder();
 
-  updateStatusPill(s);
-  if(ME.role==='bidder') renderBidder(s); else renderAdmin(s);
-  renderRoster(s);
-  renderFeed(s);
-}
+            updateStatusPill(s);
+            if (ME.role === 'bidder') renderBidder(s); else renderAdmin(s);
+            renderRoster(s);
+            renderFeed(s);
+        }
 
-function updateStatusPill(s){
-  const pill=document.getElementById('statusPill');
-  const txt=document.getElementById('statusTxt');
-  if(!pill) return;
-  pill.classList.remove('live','closed');
-  if(s.status==='open'){ pill.classList.add('live'); txt.textContent='Sale Live'; }
-  else { pill.classList.add('closed'); txt.textContent='Closed'; }
-}
+        function updateStatusPill(s) {
+            const pill = document.getElementById('statusPill');
+            const txt = document.getElementById('statusTxt');
+            if (!pill) return;
+            pill.classList.remove('live', 'closed');
+            if (s.status === 'open') { pill.classList.add('live'); txt.textContent = 'Sale Live'; }
+            else { pill.classList.add('closed'); txt.textContent = 'Closed'; }
+        }
 
-function renderBidder(s){
-  const stage=document.getElementById('stage');
-  if(stage){
-    if(s.status==='open' && s.lot){
-      const struct = 'open|'+s.lotIndex+'|'+s.history.length;
-      if(stage._struct!==struct){
-        stage.innerHTML = `
-          <div class="lot-tag">LOT ${String(s.history.length+1).padStart(2,'0')} · NOW SELLING</div>
+        function renderBidder(s) {
+            const stage = document.getElementById('stage');
+            if (stage) {
+                if (s.status === 'open' && s.lot) {
+                    const struct = 'open|' + s.lotIndex + '|' + s.history.length;
+                    if (stage._struct !== struct) {
+                        stage.innerHTML = `
+          <div class="lot-tag">LOT ${String(s.history.length + 1).padStart(2, '0')} · NOW SELLING</div>
           <div class="lot-title">${esc(s.lot.title)}</div>
           <div class="lot-blurb">${esc(s.lot.blurb)}</div>
           <div class="bigrow">
             <div><div class="biglabel">Standing bid</div><div class="bigval" id="bigVal">${fmt(s.value)}</div></div>
             <div><div class="biglabel">Held by</div><div id="heldBy"></div></div>
           </div>`;
-        stage._struct=struct; lastValue=-1;
-      }
-      const bv=document.getElementById('bigVal');
-      if(bv){
-        bv.textContent=fmt(s.value);
-        if(s.value>lastValue && lastValue>=0){ bv.classList.remove('bump'); void bv.offsetWidth; bv.classList.add('bump'); }
-      }
-      lastValue=s.value;
-      const hb=document.getElementById('heldBy');
-      if(hb) hb.innerHTML = s.leader
-        ? `<span class="leadname">${esc(s.leader)}${s.leader===ME.name?' <span style="font-size:13px;color:var(--gold)">(you)</span>':''}</span>`
-        : `<span class="leadname none">— awaiting first bid —</span>`;
-    } else {
-      const struct='closed|'+s.history.length;
-      if(stage._struct!==struct){
-        lastValue=-1;
-        stage.innerHTML = `
-          <div class="lot-tag">${s.status==='closed' && s.history.length? 'SALE CONCLUDED':'STANDBY'}</div>
-          <div class="lot-title" style="font-style:normal;color:var(--cream-dim)">${s.history.length? 'The gavel has fallen.':'The room awaits.'}</div>
-          <div class="lot-blurb">${s.history.length? 'Thank you for bidding. The Auctioneer holds the final record.':'No lot is currently on the block. Start a sale below, or wait for the Auctioneer.'}</div>`;
-        if(s.status==='closed' && s.history.length) renderResultsForBidder(stage, s);
-        stage._struct=struct;
-      }
-    }
-  }
-  wireBidPanel(s);
-}
+                        stage._struct = struct; lastValue = -1;
+                    }
+                    const bv = document.getElementById('bigVal');
+                    if (bv) {
+                        bv.textContent = fmt(s.value);
+                        if (s.value > lastValue && lastValue >= 0) { bv.classList.remove('bump'); void bv.offsetWidth; bv.classList.add('bump'); }
+                    }
+                    lastValue = s.value;
+                    const hb = document.getElementById('heldBy');
+                    if (hb) hb.innerHTML = s.leader
+                        ? `<span class="leadname">${esc(s.leader)}${s.leader === ME.name ? ' <span style="font-size:13px;color:var(--gold)">(you)</span>' : ''}</span>`
+                        : `<span class="leadname none">— awaiting first bid —</span>`;
+                } else {
+                    const struct = 'closed|' + s.history.length;
+                    if (stage._struct !== struct) {
+                        lastValue = -1;
+                        stage.innerHTML = `
+          <div class="lot-tag">${s.status === 'closed' && s.history.length ? 'SALE CONCLUDED' : 'STANDBY'}</div>
+          <div class="lot-title" style="font-style:normal;color:var(--cream-dim)">${s.history.length ? 'The gavel has fallen.' : 'The room awaits.'}</div>
+          <div class="lot-blurb">${s.history.length ? 'Thank you for bidding. The Auctioneer holds the final record.' : 'No lot is currently on the block. Start a sale below, or wait for the Auctioneer.'}</div>`;
+                        if (s.status === 'closed' && s.history.length) renderResultsForBidder(stage, s);
+                        stage._struct = struct;
+                    }
+                }
+            }
+            wireBidPanel(s);
+        }
 
-function renderResultsForBidder(stage, s){
-  const rows = s.history.map(h=>`
-    <tr class="${h.winner?'win':''}">
+        function renderResultsForBidder(stage, s) {
+            const rows = s.history.map(h => `
+    <tr class="${h.winner ? 'win' : ''}">
       <td>${esc(h.lot)}</td>
-      <td>${h.winner?esc(h.winner):'<span style="color:var(--muted)">passed in</span>'}</td>
-      <td class="num">${h.winner?fmt(h.value):'—'}</td>
+      <td>${h.winner ? esc(h.winner) : '<span style="color:var(--muted)">passed in</span>'}</td>
+      <td class="num">${h.winner ? fmt(h.value) : '—'}</td>
     </tr>`).join('');
-  stage.insertAdjacentHTML('beforeend', `
+            stage.insertAdjacentHTML('beforeend', `
     <div class="ledger-title" style="margin-top:24px">Final results</div>
     <div class="scrollx"><table>
       <thead><tr><th>Lot</th><th>Winner</th><th style="text-align:right">Hammer</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`);
-}
+        }
 
-function renderAdmin(s){
-  wireAdminControls(s);
-  const sg=document.getElementById('statgrid');
-  if(sg){
-    const online=Object.values(s.participants).filter(p=>isOnline(p)&&p.role==='bidder').length;
-    const total=s.bids.length;
-    const highest=s.bids.reduce((m,b)=>Math.max(m,b.amount),0);
-    sg.innerHTML = `
-      <div class="stat"><div class="sl">Now Selling</div><div class="sv sm">${s.lot?esc(s.lot.title):(s.status==='closed'?'— closed —':'— standby —')}</div></div>
-      <div class="stat"><div class="sl">Standing Bid</div><div class="sv">${s.status==='open'?fmt(s.value):'—'}</div></div>
-      <div class="stat"><div class="sl">Held By</div><div class="sv sm">${s.leader?esc(s.leader):'—'}</div></div>
+        function renderAdmin(s) {
+            wireAdminControls(s);
+            const sg = document.getElementById('statgrid');
+            if (sg) {
+                const online = Object.values(s.participants).filter(p => isOnline(p) && p.role === 'bidder').length;
+                const total = s.bids.length;
+                const highest = s.bids.reduce((m, b) => Math.max(m, b.amount), 0);
+                sg.innerHTML = `
+      <div class="stat"><div class="sl">Now Selling</div><div class="sv sm">${s.lot ? esc(s.lot.title) : (s.status === 'closed' ? '— closed —' : '— standby —')}</div></div>
+      <div class="stat"><div class="sl">Standing Bid</div><div class="sv">${s.status === 'open' ? fmt(s.value) : '—'}</div></div>
+      <div class="stat"><div class="sl">Held By</div><div class="sv sm">${s.leader ? esc(s.leader) : '—'}</div></div>
       <div class="stat"><div class="sl">Bidders Online</div><div class="sv">${online}</div></div>
       <div class="stat"><div class="sl">Total Bids</div><div class="sv">${total}</div></div>
-      <div class="stat"><div class="sl">Lots Sold</div><div class="sv">${s.history.filter(h=>h.winner).length}</div></div>`;
-  }
-  const slot=document.getElementById('reportSlot');
-  if(slot){
-    if(s.status==='closed' && s.history.length){ slot.innerHTML=reportMarkup(s); wireReport(s); }
-    else if(slot._hadReport){ slot.innerHTML=''; }
-    slot._hadReport = (s.status==='closed' && s.history.length>0);
-  }
-}
+      <div class="stat"><div class="sl">Lots Sold</div><div class="sv">${s.history.filter(h => h.winner).length}</div></div>`;
+            }
+            const slot = document.getElementById('reportSlot');
+            if (slot) {
+                if (s.status === 'closed' && s.history.length) { slot.innerHTML = reportMarkup(s); wireReport(s); }
+                else if (slot._hadReport) { slot.innerHTML = ''; }
+                slot._hadReport = (s.status === 'closed' && s.history.length > 0);
+            }
+        }
 
-function reportMarkup(s){
-  const winners=s.history.filter(h=>h.winner);
-  const grand=winners.reduce((a,h)=>a+h.value,0);
-  const topLot=winners.reduce((m,h)=>h.value>(m?.value||0)?h:m,null);
-  const partList=Object.values(s.participants).filter(p=>p.role==='bidder');
-  const dur = s.startedAt&&s.closedAt? Math.max(1,Math.round((s.closedAt-s.startedAt)/1000)) : 0;
+        function reportMarkup(s) {
+            const winners = s.history.filter(h => h.winner);
+            const grand = winners.reduce((a, h) => a + h.value, 0);
+            const topLot = winners.reduce((m, h) => h.value > (m?.value || 0) ? h : m, null);
+            const partList = Object.values(s.participants).filter(p => p.role === 'bidder');
+            const dur = s.startedAt && s.closedAt ? Math.max(1, Math.round((s.closedAt - s.startedAt) / 1000)) : 0;
 
-  const lotRows=s.history.map((h,i)=>`
-    <tr class="${h.winner?'win':''}">
-      <td class="mono" style="color:var(--muted)">${String(i+1).padStart(2,'0')}</td>
+            const lotRows = s.history.map((h, i) => `
+    <tr class="${h.winner ? 'win' : ''}">
+      <td class="mono" style="color:var(--muted)">${String(i + 1).padStart(2, '0')}</td>
       <td>${esc(h.lot)}</td>
-      <td>${h.winner?esc(h.winner):'<span style="color:var(--muted)">passed in</span>'}</td>
+      <td>${h.winner ? esc(h.winner) : '<span style="color:var(--muted)">passed in</span>'}</td>
       <td class="num">${h.bidCount}</td>
-      <td class="num">${h.winner?fmt(h.value):'—'}</td>
+      <td class="num">${h.winner ? fmt(h.value) : '—'}</td>
     </tr>`).join('');
 
-  const ledgerRows=[...s.bids].reverse().map(b=>`
+            const ledgerRows = [...s.bids].reverse().map(b => `
     <tr>
       <td class="mono" style="color:var(--gold)">#${b.paddle}</td>
       <td>${esc(b.user)}</td>
@@ -778,19 +1502,19 @@ function reportMarkup(s){
       <td class="num">${fmt(b.amount)}</td>
     </tr>`).join('') || `<tr><td colspan="4" style="color:var(--muted);font-style:italic">No bids were recorded.</td></tr>`;
 
-  return `
+            return `
   <div class="report" id="report">
     <div class="rh">
       <div class="stamp">SESSION REPORT · DELIVERED TO AUCTIONEER</div>
       <h2>Final Record of Sale</h2>
-      <div class="rsub">Compiled ${new Date(s.closedAt||now()).toLocaleString()} · ${dur}s on the block · ${partList.length} bidders · ${s.bids.length} total bids</div>
+      <div class="rsub">Compiled ${new Date(s.closedAt || now()).toLocaleString()} · ${dur}s on the block · ${partList.length} bidders · ${s.bids.length} total bids</div>
     </div>
 
     <div class="statgrid" style="margin-bottom:8px">
       <div class="stat"><div class="sl">Grand Total (Hammer)</div><div class="sv">${fmt(grand)}</div></div>
       <div class="stat"><div class="sl">Lots Sold</div><div class="sv">${winners.length} / ${s.history.length}</div></div>
-      <div class="stat"><div class="sl">Top Lot</div><div class="sv sm">${topLot?esc(topLot.lot):'—'}</div></div>
-      <div class="stat"><div class="sl">Top Hammer</div><div class="sv">${topLot?fmt(topLot.value):'—'}</div></div>
+      <div class="stat"><div class="sl">Top Lot</div><div class="sv sm">${topLot ? esc(topLot.lot) : '—'}</div></div>
+      <div class="stat"><div class="sl">Top Hammer</div><div class="sv">${topLot ? fmt(topLot.value) : '—'}</div></div>
     </div>
 
     <div class="ledger-title">Results by lot</div>
@@ -810,99 +1534,102 @@ function reportMarkup(s){
       <button class="btn ghost" id="dlJson">↓ Download report</button>
     </div>
   </div>`;
-}
+        }
 
-function buildReportData(s){
-  const winners=s.history.filter(h=>h.winner);
-  return {
-    auction:'The Phantom Auction',
-    closedAt:new Date(s.closedAt||now()).toISOString(),
-    startedAt:s.startedAt?new Date(s.startedAt).toISOString():null,
-    auctioneer:ME.name,
-    bidders:Object.values(s.participants).filter(p=>p.role==='bidder').map(p=>({name:p.name,paddle:paddleFor(p.name)})),
-    summary:{
-      lotsOffered:s.history.length,
-      lotsSold:winners.length,
-      totalBids:s.bids.length,
-      grandTotalHammer:winners.reduce((a,h)=>a+h.value,0),
-      currency:'phantom-credits'
-    },
-    lots:s.history.map(h=>({lot:h.lot,winner:h.winner,hammer:h.value,bids:h.bidCount})),
-    ledger:s.bids.map(b=>({paddle:b.paddle,bidder:b.user,lot:b.lot,amount:b.amount,at:new Date(b.ts).toISOString()}))
-  };
-}
-function wireReport(s){
-  const cj=document.getElementById('copyJson');
-  const dj=document.getElementById('dlJson');
-  const data=()=>JSON.stringify(buildReportData(s),null,2);
-  if(cj) cj.onclick=async()=>{ try{ await navigator.clipboard.writeText(data()); toast('Report copied to clipboard.'); }catch{ toast('Copy blocked by browser.'); } };
-  if(dj) dj.onclick=()=>{ const blob=new Blob([data()],{type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-    a.download='phantom-auction-report.json'; a.click(); URL.revokeObjectURL(a.href); toast('Report downloaded.'); };
-}
+        function buildReportData(s) {
+            const winners = s.history.filter(h => h.winner);
+            return {
+                auction: 'The Phantom Auction',
+                closedAt: new Date(s.closedAt || now()).toISOString(),
+                startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : null,
+                auctioneer: ME.name,
+                bidders: Object.values(s.participants).filter(p => p.role === 'bidder').map(p => ({ name: p.name, paddle: paddleFor(p.name) })),
+                summary: {
+                    lotsOffered: s.history.length,
+                    lotsSold: winners.length,
+                    totalBids: s.bids.length,
+                    grandTotalHammer: winners.reduce((a, h) => a + h.value, 0),
+                    currency: 'phantom-credits'
+                },
+                lots: s.history.map(h => ({ lot: h.lot, winner: h.winner, hammer: h.value, bids: h.bidCount })),
+                ledger: s.bids.map(b => ({ paddle: b.paddle, bidder: b.user, lot: b.lot, amount: b.amount, at: new Date(b.ts).toISOString() }))
+            };
+        }
+        function wireReport(s) {
+            const cj = document.getElementById('copyJson');
+            const dj = document.getElementById('dlJson');
+            const data = () => JSON.stringify(buildReportData(s), null, 2);
+            if (cj) cj.onclick = async () => { try { await navigator.clipboard.writeText(data()); toast('Report copied to clipboard.'); } catch { toast('Copy blocked by browser.'); } };
+            if (dj) dj.onclick = () => {
+                const blob = new Blob([data()], { type: 'application/json' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                a.download = 'phantom-auction-report.json'; a.click(); URL.revokeObjectURL(a.href); toast('Report downloaded.');
+            };
+        }
 
-function renderRoster(s){
-  const r=document.getElementById('roster');
-  const count=document.getElementById('rosterCount');
-  if(!r) return;
-  const people=Object.values(s.participants)
-    .sort((a,b)=> (b.role==='auctioneer') - (a.role==='auctioneer') || a.joinedAt-b.joinedAt);
-  const onlineCount=people.filter(isOnline).length;
-  if(count) count.textContent=onlineCount+' online';
-  const sig = people.map(p=>p.name+(isOnline(p)?'1':'0')+p.role).join('|');
-  if(r._sig===sig) return;     // nothing changed → leave DOM alone (no flicker)
-  r._sig=sig;
-  r.innerHTML = people.map(p=>{
-    const on=isOnline(p);
-    const adm=p.role==='auctioneer';
-    const you=p.name===ME.name;
-    return `<div class="person ${you?'you':''}" style="${on?'':'opacity:.4'}">
+        function renderRoster(s) {
+            const r = document.getElementById('roster');
+            const count = document.getElementById('rosterCount');
+            if (!r) return;
+            const people = Object.values(s.participants)
+                .sort((a, b) => (b.role === 'auctioneer') - (a.role === 'auctioneer') || a.joinedAt - b.joinedAt);
+            const onlineCount = people.filter(isOnline).length;
+            if (count) count.textContent = onlineCount + ' online';
+            const sig = people.map(p => p.name + (isOnline(p) ? '1' : '0') + p.role).join('|');
+            if (r._sig === sig) return;     // nothing changed → leave DOM alone (no flicker)
+            r._sig = sig;
+            r.innerHTML = people.map(p => {
+                const on = isOnline(p);
+                const adm = p.role === 'auctioneer';
+                const you = p.name === ME.name;
+                return `<div class="person ${you ? 'you' : ''}" style="${on ? '' : 'opacity:.4'}">
       <div class="l">
-        <div class="av ${adm?'adm-av':''}">${initials(p.name)}</div>
-        <span class="nm">${esc(p.name)}${you?' (you)':''}</span>
-        ${adm?'<span class="badge adm" style="font-size:9px">Gavel</span>':
-          `<span class="paddle" style="font-size:10px;padding:2px 6px">#${paddleFor(p.name)}</span>`}
+        <div class="av ${adm ? 'adm-av' : ''}">${initials(p.name)}</div>
+        <span class="nm">${esc(p.name)}${you ? ' (you)' : ''}</span>
+        ${adm ? '<span class="badge adm" style="font-size:9px">Gavel</span>' :
+                        `<span class="paddle" style="font-size:10px;padding:2px 6px">#${paddleFor(p.name)}</span>`}
       </div>
-      ${on?'<span class="live-dot" title="online"></span>':'<span style="font-size:10px;color:var(--muted)">away</span>'}
+      ${on ? '<span class="live-dot" title="online"></span>' : '<span style="font-size:10px;color:var(--muted)">away</span>'}
     </div>`;
-  }).join('') || '<div class="empty">Nobody here yet.</div>';
-}
+            }).join('') || '<div class="empty">Nobody here yet.</div>';
+        }
 
-function renderFeed(s){
-  const feed=document.getElementById('feed');
-  const count=document.getElementById('bidCount');
-  if(!feed) return;
-  if(count) count.textContent=s.bids.length+' bids';
-  const lastId = s.bids.length? s.bids[s.bids.length-1].id : 0;
-  const sig = s.bids.length+':'+lastId;
-  if(feed._sig===sig) return;   // no new bids → don't re-render (no flicker)
-  feed._sig=sig;
-  const recent=[...s.bids].slice(-40).reverse();
-  if(!recent.length){ feed.innerHTML='<div class="empty">No bids yet — be the first to raise.</div>'; return; }
-  feed.innerHTML = recent.map(b=>`
+        function renderFeed(s) {
+            const feed = document.getElementById('feed');
+            const count = document.getElementById('bidCount');
+            if (!feed) return;
+            if (count) count.textContent = s.bids.length + ' bids';
+            const lastId = s.bids.length ? s.bids[s.bids.length - 1].id : 0;
+            const sig = s.bids.length + ':' + lastId;
+            if (feed._sig === sig) return;   // no new bids → don't re-render (no flicker)
+            feed._sig = sig;
+            const recent = [...s.bids].slice(-40).reverse();
+            if (!recent.length) { feed.innerHTML = '<div class="empty">No bids yet — be the first to raise.</div>'; return; }
+            feed.innerHTML = recent.map(b => `
     <div class="bid">
       <div class="bn">
         <span class="pp">#${b.paddle}</span>
-        <span class="nm">${esc(b.user)}${b.user===ME.name?' <span style="color:var(--gold);font-size:11px">(you)</span>':''}</span>
+        <span class="nm">${esc(b.user)}${b.user === ME.name ? ' <span style="color:var(--gold);font-size:11px">(you)</span>' : ''}</span>
       </div>
       <div style="text-align:right">
         <div class="amt">${fmt(b.amount)}</div>
         <div class="lt">${esc(b.lot)}</div>
       </div>
     </div>`).join('');
-}
+        }
 
-/* ---------- boot ---------- */
-renderEntry();
-window.addEventListener('beforeunload', ()=>{
-  clearInterval(pollTimer); clearInterval(beatTimer);
-  if(flushTimer){ clearTimeout(flushTimer); flushTimer=null; }
-  if(ME.name && state){
-    if(state.participants[ME.name]) state.participants[ME.name].lastSeen=0;
-    state.rev=(state.rev||0)+1;
-    saveState(state);   // single best-effort write
-  }
-});
-</script>
+        /* ---------- boot ---------- */
+        renderEntry();
+        window.addEventListener('beforeunload', () => {
+            clearInterval(pollTimer); clearInterval(beatTimer);
+            if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+            if (ME.name && state) {
+                if (state.participants[ME.name]) state.participants[ME.name].lastSeen = 0;
+                state.rev = (state.rev || 0) + 1;
+                saveState(state);   // single best-effort write
+            }
+        });
+    </script>
 </body>
+
 </html>
