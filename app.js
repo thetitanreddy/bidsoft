@@ -3,27 +3,25 @@ import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/fir
 
 // ============================================================
 // FIREBASE CONFIGURATION
-// Add your Firebase Config here:
+// Config is now fetched securely from Vercel Environment Variables
 // ============================================================
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-
 let appFirebase;
 let db;
 let auctionRef;
+
 try {
-  appFirebase = initializeApp(firebaseConfig);
-  db = getDatabase(appFirebase);
-  auctionRef = ref(db, 'auction_v1');
+  const res = await fetch('/api/config');
+  const firebaseConfig = await res.json();
+  
+  if (firebaseConfig.apiKey) {
+    appFirebase = initializeApp(firebaseConfig);
+    db = getDatabase(appFirebase);
+    auctionRef = ref(db, 'auction_v1');
+  } else {
+    console.warn("Firebase env variables not found. Please add them in Vercel.");
+  }
 } catch (e) {
-  console.warn("Firebase not properly configured yet. Please update app.js with your config.");
+  console.warn("Failed to fetch Firebase config from /api/config", e);
 }
 
 const CCY = 'Φ';
