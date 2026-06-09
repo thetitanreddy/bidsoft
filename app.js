@@ -225,10 +225,23 @@ function renderEntry(){
       errDiv.textContent='Waiting for Google authentication...';
       const result = await signInWithPopup(auth, provider);
       const name = result.user.displayName;
+      const email = result.user.email;
       
       if(!name){ errDiv.textContent='Could not read your Google name.'; return; }
+      
+      // Prevent random users from logging into the Admin page
+      if (ME.role === 'auctioneer') {
+        const ALLOWED_ADMINS = [
+          'your-email@example.com', // <-- UPDATE THIS WITH YOUR REAL EMAIL!
+        ];
+        if (!ALLOWED_ADMINS.includes(email)) {
+          errDiv.textContent = 'Unauthorized: You do not have permission to run the auction.';
+          return;
+        }
+      }
+
       ME.name = name;
-      ME.email = result.user.email;
+      ME.email = email;
       errDiv.textContent='Connecting to auction...';
       console.log("Calling joinSession for:", name);
       await joinSession();
