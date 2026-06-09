@@ -141,8 +141,11 @@ async function flush(){
 }
 
 function fmt(n){ return CCY + ' ' + Math.round(n).toLocaleString('en-US'); }
-function paddleFor(name){ let h=0; for(const c of name) h=(h*31+c.charCodeAt(0))>>>0; return 100+(h%900); }
-function initials(name){ return name.trim().slice(0,2).toUpperCase(); }
+function paddleFor(name){ 
+  if (!name) return 100;
+  let h=0; for(const c of name) h=(h*31+c.charCodeAt(0))>>>0; return 100+(h%900); 
+}
+function initials(name){ return (name||'').trim().slice(0,2).toUpperCase(); }
 function isOnline(p){ return p && (now()-p.lastSeen) < ONLINE_MS; }
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
@@ -158,7 +161,9 @@ export function initApp(role) {
             if (!remote) return;
             if ((remote.rev||0) <= localRev) return;
             state = remote; localRev = remote.rev||0;
-            renderFromState(state);
+            if (ME.name) {
+                renderFromState(state);
+            }
         });
     }
 
